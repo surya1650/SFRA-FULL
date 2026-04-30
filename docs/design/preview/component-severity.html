@@ -1,0 +1,59 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 0; }
+  .severity-header { padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
+  .icon-circle { width: 52px; height: 52px; border-radius: 9999px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; flex-shrink: 0; }
+  .sev-label-sm { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.8; }
+  .sev-label-lg { font-size: 22px; font-weight: 700; margin-top: 2px; }
+  .sev-summary  { font-size: 13px; opacity: 0.9; margin-top: 3px; }
+  .normal   { background: linear-gradient(90deg,#059669,#10b981); color: white; }
+  .marginal { background: linear-gradient(90deg,#d97706,#f59e0b); color: #1c1917; }
+  .severe   { background: linear-gradient(90deg,#c2410c,#ea580c); color: white; }
+  .critical { background: linear-gradient(90deg,#991b1b,#ef4444); color: white; }
+  .sub-row { padding: 12px 16px; display: flex; gap: 6px; background: white; border-top: 1px solid #e2e8f0; }
+  .sub-chip { flex: 1; border-radius: 5px; padding: 6px 8px; font-size: 11px; }
+  .verdict-good     { background: #d1fae5; color: #065f46; }
+  .verdict-marginal { background: #fef3c7; color: #92400e; }
+  .verdict-bad      { background: #ffe4e6; color: #9f1239; }
+  .verdict-unknown  { background: #f1f5f9; color: #334155; }
+  .sub-name { font-weight: 600; }
+  .sub-hz { opacity: 0.75; margin-top: 1px; }
+  .sub-verdict { margin-top: 3px; text-transform: capitalize; }
+</style></head><body>
+<!-- Normal -->
+<div style="margin-bottom:8px;">
+  <div class="severity-header normal">
+    <div class="icon-circle">✓</div>
+    <div>
+      <div class="sev-label-sm">Condition Assessment · CIGRE TB 812</div>
+      <div class="sev-label-lg">Normal</div>
+      <div class="sev-summary">Winding geometry unchanged. No mechanical deformation detected.</div>
+    </div>
+  </div>
+  <div class="sub-row">
+    <div class="sub-chip verdict-good"><div class="sub-name">Low</div><div class="sub-hz">100–1k Hz</div><div class="sub-verdict">good</div></div>
+    <div class="sub-chip verdict-good"><div class="sub-name">Medium</div><div class="sub-hz">1k–100k Hz</div><div class="sub-verdict">good</div></div>
+    <div class="sub-chip verdict-good"><div class="sub-name">Mid-high</div><div class="sub-hz">100k–600k Hz</div><div class="sub-verdict">good</div></div>
+    <div class="sub-chip verdict-unknown"><div class="sub-name">High</div><div class="sub-hz">600k–2M Hz</div><div class="sub-verdict">unknown</div></div>
+  </div>
+</div>
+<!-- Severe -->
+<div>
+  <div class="severity-header severe">
+    <div class="icon-circle">⚠</div>
+    <div>
+      <div class="sev-label-sm">Condition Assessment · CIGRE TB 812</div>
+      <div class="sev-label-lg">Severe Deformation</div>
+      <div class="sev-summary">Significant frequency shifts detected. Immediate inspection recommended.</div>
+    </div>
+  </div>
+  <div class="sub-row">
+    <div class="sub-chip verdict-good"><div class="sub-name">Low</div><div class="sub-hz">100–1k Hz</div><div class="sub-verdict">good</div></div>
+    <div class="sub-chip verdict-marginal"><div class="sub-name">Medium</div><div class="sub-hz">1k–100k Hz</div><div class="sub-verdict">marginal</div></div>
+    <div class="sub-chip verdict-bad"><div class="sub-name">Mid-high</div><div class="sub-hz">100k–600k Hz</div><div class="sub-verdict">bad</div></div>
+    <div class="sub-chip verdict-bad"><div class="sub-name">High</div><div class="sub-hz">600k–2M Hz</div><div class="sub-verdict">bad</div></div>
+  </div>
+</div>
+</body></html>

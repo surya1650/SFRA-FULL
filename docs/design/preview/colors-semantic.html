@@ -1,0 +1,34 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 16px; }
+  .title { font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .chip { border-radius: 6px; overflow: hidden; }
+  .chip-swatch { height: 40px; }
+  .chip-body { padding: 5px 7px; background: white; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; }
+  .chip-name { font-size: 11px; font-weight: 600; }
+  .chip-hex { font-size: 10px; color: #94a3b8; font-family: monospace; }
+  .badges { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .badge { padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .section { margin-top: 4px; }
+</style></head><body>
+<div class="title">Semantic — Verdict / Health Colors</div>
+<div class="grid">
+  <div class="chip"><div class="chip-swatch" style="background:#10b981"></div><div class="chip-body"><div class="chip-name" style="color:#065f46;">Good</div><div class="chip-hex">#10b981</div></div></div>
+  <div class="chip"><div class="chip-swatch" style="background:#f59e0b"></div><div class="chip-body"><div class="chip-name" style="color:#92400e;">Marginal</div><div class="chip-hex">#f59e0b</div></div></div>
+  <div class="chip"><div class="chip-swatch" style="background:#f97316"></div><div class="chip-body"><div class="chip-name" style="color:#9a3412;">Moderate</div><div class="chip-hex">#f97316</div></div></div>
+  <div class="chip"><div class="chip-swatch" style="background:#f43f5e"></div><div class="chip-body"><div class="chip-name" style="color:#9f1239;">Bad</div><div class="chip-hex">#f43f5e</div></div></div>
+  <div class="chip"><div class="chip-swatch" style="background:#ef4444"></div><div class="chip-body"><div class="chip-name" style="color:#991b1b;">Critical</div><div class="chip-hex">#ef4444</div></div></div>
+  <div class="chip"><div class="chip-swatch" style="background:#94a3b8"></div><div class="chip-body"><div class="chip-name" style="color:#334155;">Unknown</div><div class="chip-hex">#94a3b8</div></div></div>
+</div>
+<div class="badges">
+  <div class="badge" style="background:#d1fae5;color:#065f46;">GOOD</div>
+  <div class="badge" style="background:#fef3c7;color:#92400e;">MARGINAL</div>
+  <div class="badge" style="background:#ffedd5;color:#9a3412;">MODERATE</div>
+  <div class="badge" style="background:#ffe4e6;color:#9f1239;">BAD</div>
+  <div class="badge" style="background:#fee2e2;color:#991b1b;">CRITICAL</div>
+  <div class="badge" style="background:#f1f5f9;color:#334155;">UNKNOWN</div>
+</div>
+</body></html>

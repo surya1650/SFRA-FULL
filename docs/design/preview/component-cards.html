@@ -1,0 +1,35 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px 0 rgb(0 0 0/0.1); padding: 16px; }
+  .card-title { font-size: 15px; font-weight: 600; color: #0f172a; margin-bottom: 6px; }
+  .card-body  { font-size: 13px; color: #475569; line-height: 1.6; }
+  .card-meta  { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+  .dark-card  { background: #1e293b; border-color: #334155; }
+  .dark-card .card-title { color: #f1f5f9; }
+  .dark-card .card-body  { color: #cbd5e1; }
+  .dark-card .card-meta  { color: #64748b; }
+</style></head><body>
+<div class="card">
+  <div class="card-title">Comparison result</div>
+  <div class="card-body">Reference vs test numerical-indices assessment. Run the classification to populate results.</div>
+  <div class="card-meta">Light mode card · bg-white · border-slate-200 · shadow</div>
+</div>
+<div class="card dark-card">
+  <div class="card-title">Failure diagnosis</div>
+  <div class="card-body">Run the classification on the Comparison tab to populate the failure-mode list and multi-standard verdicts.</div>
+  <div class="card-meta">Dark mode card · bg-slate-800 · border-slate-700</div>
+</div>
+<div class="card" style="grid-column:1/-1;padding:12px 16px;">
+  <div style="font-size:11px;font-weight:600;color:#64748b;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:8px;">Card anatomy</div>
+  <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:12px;color:#64748b;">
+    <span>bg: <code style="font-family:monospace;color:#334155;">#ffffff</code></span>
+    <span>border: <code style="font-family:monospace;color:#334155;">1px #e2e8f0</code></span>
+    <span>radius: <code style="font-family:monospace;color:#334155;">8px</code></span>
+    <span>shadow: <code style="font-family:monospace;color:#334155;">0 1px 3px rgba(0,0,0,0.1)</code></span>
+    <span>padding: <code style="font-family:monospace;color:#334155;">20px</code></span>
+  </div>
+</div>
+</body></html>

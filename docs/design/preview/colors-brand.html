@@ -1,0 +1,36 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 16px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch { flex: 1; min-width: 64px; border-radius: 6px; overflow: hidden; }
+  .swatch-color { height: 56px; }
+  .swatch-label { padding: 4px 6px; background: white; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; }
+  .swatch-name { font-size: 11px; font-weight: 600; color: #334155; }
+  .swatch-hex  { font-size: 10px; color: #94a3b8; font-family: monospace; }
+  .title { font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+  .accent-strip { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+  .pill { padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+</style></head><body>
+<div class="title">Brand — Blue</div>
+<div class="row">
+  <div class="swatch"><div class="swatch-color" style="background:#eff6ff"></div><div class="swatch-label"><div class="swatch-name">50</div><div class="swatch-hex">#eff6ff</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#dbeafe"></div><div class="swatch-label"><div class="swatch-name">100</div><div class="swatch-hex">#dbeafe</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#bfdbfe"></div><div class="swatch-label"><div class="swatch-name">200</div><div class="swatch-hex">#bfdbfe</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#93c5fd"></div><div class="swatch-label"><div class="swatch-name">300</div><div class="swatch-hex">#93c5fd</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#60a5fa"></div><div class="swatch-label"><div class="swatch-name">400</div><div class="swatch-hex">#60a5fa</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#3b82f6"></div><div class="swatch-label"><div class="swatch-name">500</div><div class="swatch-hex">#3b82f6</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#2563eb"></div><div class="swatch-label"><div class="swatch-name">600 ★</div><div class="swatch-hex">#2563eb</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#1d4ed8"></div><div class="swatch-label"><div class="swatch-name">700</div><div class="swatch-hex">#1d4ed8</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#1e40af"></div><div class="swatch-label"><div class="swatch-name">800</div><div class="swatch-hex">#1e40af</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#1e3a8a"></div><div class="swatch-label"><div class="swatch-name">900 ★</div><div class="swatch-hex">#1e3a8a</div></div></div>
+</div>
+<div class="accent-strip">
+  <div class="pill" style="background:linear-gradient(90deg,#1e3a8a,#2563eb);color:white;">Header gradient</div>
+  <div class="pill" style="background:#2563eb;color:white;">Primary btn</div>
+  <div class="pill" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">Tinted badge</div>
+  <span style="font-size:11px;color:#94a3b8;">★ = key tokens</span>
+</div>
+</body></html>
