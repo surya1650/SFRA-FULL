@@ -1,0 +1,61 @@
+# Pre-commit hooks for the APTRANSCO SFRA platform.
+# Install once with:  uv run pre-commit install
+# Run on demand with: uv run pre-commit run --all-files
+#
+# The hooks intentionally exclude external/ and frontend/ — the upstream
+# external/SFRA is a managed read-only dependency, and the frontend has its
+# own ESLint/Prettier toolchain configured under frontend/.
+exclude: '^(external/|frontend/|data/|assets/branding/aptransco_logo).*$'
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ["--allow-multiple-documents"]
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=750"]   # block accidental binary commits; raw traces live outside git
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic==2.9.2
+          - types-PyYAML
+        files: ^src/sfra_full/
+        args: ["--config-file=pyproject.toml"]
+
+  # Validate the IEEE C57.149 combination catalogue YAML on every commit.
+  # The schema check guards against accidentally publishing the wrong
+  # combination count for a transformer type — which is a non-negotiable
+  # per spec §11.
+  - repo: local
+    hooks:
+      - id: validate-combination-catalogue
+        name: Validate IEEE C57.149 combination catalogue counts
+        entry: python scripts/validate_catalogue.py
+        language: system
+        files: ^standards/ieee_c57_149_combinations\.yaml$
+        pass_filenames: false

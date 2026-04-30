@@ -1,0 +1,40 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 16px; }
+  .title { font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { border-bottom: 2px solid #cbd5e1; }
+  th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+  th:not(:first-child) { text-align: right; }
+  td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 13px; }
+  td:not(:first-child) { text-align: right; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .label { color: #475569; }
+  .dim   { color: #94a3b8; font-size: 11px; }
+</style></head><body>
+<div class="title">Index Table — Overall Indices</div>
+<div class="card">
+<table>
+  <thead>
+    <tr>
+      <th>Index</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td class="label">CC — Correlation Coefficient</td><td class="mono">0.997823</td></tr>
+    <tr><td class="label">SD — Spectrum Deviation</td><td class="mono">0.034512</td></tr>
+    <tr><td class="label">ASLE — Abs. Sum Log Error</td><td class="mono">0.184231</td></tr>
+    <tr><td class="label">CSD — Comp. Std. Deviation</td><td class="mono">0.021034</td></tr>
+    <tr><td class="label">ED — Euclidean Distance</td><td class="mono">1.2341e-2</td></tr>
+    <tr><td class="label">MM — Min/Max Ratio</td><td class="mono">0.981200</td></tr>
+    <tr><td class="label">SSRE — Sum Squared Ratio Err.</td><td class="mono">4.5612e-3</td></tr>
+    <tr><td class="label">SSE — Sum Squared Error</td><td class="mono">2.3410e-4</td></tr>
+  </tbody>
+</table>
+</div>
+</body></html>

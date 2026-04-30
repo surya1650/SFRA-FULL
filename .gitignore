@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.python-version
+
+# uv
+.venv/
+venv/
+env/
+
+# ---------------------------------------------------------------------------
+# Node / frontend
+# ---------------------------------------------------------------------------
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# IDE / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Project-specific
+# ---------------------------------------------------------------------------
+# Runtime SQLite database and trace blobs are NOT committed. The data/
+# layout (data/transformers/<id>/generations/...) is created at runtime by
+# the API. We do commit the empty top-level data/ directory so the volume
+# mount path exists on a fresh clone.
+data/transformers/*/
+data/*.db
+data/*.db-journal
+data/*.sqlite*
+data/audit/
+
+# Generated reports
+data/reports/
+
+# ---------------------------------------------------------------------------
+# External dependency: the upstream SFRA repo lives at external/SFRA/ but is
+# treated as a read-only managed dependency. Developers bring it in via
+# scripts/setup_external.sh; the upstream source is NOT committed to this
+# repository. The keep/wrap/replace inventory we own lives at
+# external/INVENTORY.md.
+# ---------------------------------------------------------------------------
+external/SFRA/
+
+# ---------------------------------------------------------------------------
+# Branding assets that may be license-restricted
+# ---------------------------------------------------------------------------
+# The APTRANSCO logo (sourced from aptransco.gov.in) goes in assets/branding/
+# but the binary itself is not redistributed in git — drop it locally.
+assets/branding/aptransco_logo.*
+!assets/branding/.gitkeep
+!assets/branding/README.txt

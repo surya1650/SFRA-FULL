@@ -1,0 +1,648 @@
+# =============================================================================
+# IEEE C57.149-2012 — APTRANSCO SFRA combination catalogue (spec v2 §5)
+# =============================================================================
+#
+# This file is the SINGLE SOURCE OF TRUTH for which SFRA combinations exist
+# per transformer type. Edit here, validate via `make validate-catalogue`,
+# regenerate downstream artefacts (UI dropdowns, FRAX importer expectations,
+# report tables). Never duplicate this list elsewhere.
+#
+# Schema is enforced by scripts/validate_catalogue.py; pre-commit blocks any
+# commit that breaks the row counts or code patterns.
+#
+# Codes follow the FRAX → combination_code resolver in spec v2 §4.1:
+#   EEOC_<WND>_<R|S|T>                 end-to-end open circuit
+#   EESC_<WND>_<R|S|T>                 end-to-end short circuit (default: LV/IV shorted)
+#   EESC_<WND>_<R|S|T>_TVS             ...with tertiary winding shorted instead
+#   CIW_<WND_A>_<WND_B>_<R|S|T>        capacitive inter-winding
+#   IIW_<WND_A>_<WND_B>_<R|S|T>        inductive inter-winding
+#
+# Terminal labels follow MEGGER FRAX naming (what the engineer sees on the
+# instrument), translated into IEEE C57.149 terminals in DECISIONS.md:
+#   HV (winding 1): 1U, 1V, 1W, 1N
+#   IV / LV (winding 2): 2U, 2V, 2W, 2N
+#   TV (winding 3, delta): 3U, 3V, 3W
+# =============================================================================
+
+metadata:
+  spec_version: 2
+  schema_version: 1
+  source_standards:
+    - "IEEE C57.149-2012, Clause 5 + Table 1"
+    - "CIGRE WG A2.26 / TB 342, 2008"
+    - "CIGRE TB 812, 2020"
+    - "IEC 60076-18:2012"
+    - "DL/T 911-2004 (R-factor sub-bands and thresholds)"
+  notes: >
+    Spec v2 catalogue. THREE_WINDING is intentionally not enumerated here
+    pending Phase 1 engineering review with APTRANSCO. The other three
+    transformer types are fully enumerated and ready for seeding.
+
+# -----------------------------------------------------------------------------
+# Frequency bands — single source of truth, used by sfra_analysis/bands.py
+# -----------------------------------------------------------------------------
+bands:
+  spec_v2:
+    - { code: LOW,    min_hz: 20,        max_hz: 2_000,     dominates: "Core / residual magnetism / shorted turns / open magnetic circuit" }
+    - { code: MID_L,  min_hz: 2_000,     max_hz: 20_000,    dominates: "Bulk winding movement / shunt impedance / main insulation" }
+    - { code: MID,    min_hz: 20_000,    max_hz: 400_000,   dominates: "Main winding deformation — axial / radial / disc displacement" }
+    - { code: HIGH,   min_hz: 400_000,   max_hz: 1_000_000, dominates: "Lead dressing / grounding / tap-changer contact / setup artefacts" }
+    - { code: HIGH_EXT, min_hz: 1_000_000, max_hz: 2_000_000, dominates: "Instrument / lead / bushing artefacts (when sweep extends)", optional: true }
+
+  # DL/T 911-2004 sub-bands used for the RLW / RLM / RLH relative-factor
+  # diagnostic (spec v2 §7.3). Kept distinct from the spec_v2 bands above
+  # because the threshold table is RL-specific.
+  dl_t_911:
+    - { code: RLW, min_hz: 1_000,    max_hz: 100_000  }
+    - { code: RLM, min_hz: 100_000,  max_hz: 600_000  }
+    - { code: RLH, min_hz: 600_000,  max_hz: 1_000_000 }
+
+# -----------------------------------------------------------------------------
+# DL/T 911 thresholds (default; tunable in sfra_analysis/verdict.py)
+# -----------------------------------------------------------------------------
+dl_t_911_thresholds:
+  RLW:
+    normal: { min: 2.0 }
+    slight: { min: 1.0, max: 2.0 }
+    obvious: { min: 0.6, max: 1.0 }
+    severe: { max: 0.6 }
+  RLM:
+    normal: { min: 1.0 }
+    slight: { min: 0.6, max: 1.0 }
+    obvious: { min: 0.2, max: 0.6 }
+    severe: { max: 0.2 }
+  RLH:
+    normal: { min: 0.6 }
+    informational_only: true   # spec v2 §7.3: HIGH band is informational
+
+# =============================================================================
+# Transformer-type → combination catalogue
+# =============================================================================
+transformer_types:
+
+  # ---------------------------------------------------------------------------
+  # 5.1 TWO_WINDING — 15 combinations
+  # Example fleet asset: 220/33 kV YNd11 power transformer
+  # ---------------------------------------------------------------------------
+  TWO_WINDING:
+    description: "Two-winding power transformer (HV + LV). E.g. 220/33 kV YNd11."
+    minimum_recommended: 9
+    total: 15
+    combinations:
+      # ---- 1-3: EEOC HV (3 phases) ----
+      - sequence: 1
+        code: EEOC_HV_R
+        category: EEOC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        delta_alternate: { injection: "1U", measurement: "1V" }
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "End-to-end open circuit, HV phase R. All non-measured terminals floating."
+      - sequence: 2
+        code: EEOC_HV_S
+        category: EEOC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        delta_alternate: { injection: "1V", measurement: "1W" }
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "End-to-end open circuit, HV phase S."
+      - sequence: 3
+        code: EEOC_HV_T
+        category: EEOC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        delta_alternate: { injection: "1W", measurement: "1U" }
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "End-to-end open circuit, HV phase T."
+
+      # ---- 4-6: EEOC LV (3 phases) ----
+      - sequence: 4
+        code: EEOC_LV_R
+        category: EEOC_LV
+        winding: LV
+        phase: R
+        injection_terminal: "2U"
+        measurement_terminal: "2N"
+        delta_alternate: { injection: "2U", measurement: "2V" }
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "End-to-end open circuit, LV phase R."
+      - sequence: 5
+        code: EEOC_LV_S
+        category: EEOC_LV
+        winding: LV
+        phase: S
+        injection_terminal: "2V"
+        measurement_terminal: "2N"
+        delta_alternate: { injection: "2V", measurement: "2W" }
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "End-to-end open circuit, LV phase S."
+      - sequence: 6
+        code: EEOC_LV_T
+        category: EEOC_LV
+        winding: LV
+        phase: T
+        injection_terminal: "2W"
+        measurement_terminal: "2N"
+        delta_alternate: { injection: "2W", measurement: "2U" }
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "End-to-end open circuit, LV phase T."
+
+      # ---- 7-9: EESC HV with LV shorted (3 phases) ----
+      - sequence: 7
+        code: EESC_HV_R
+        category: EESC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "End-to-end short circuit, HV phase R, with LV winding shorted (2U-2V-2W tied)."
+      - sequence: 8
+        code: EESC_HV_S
+        category: EESC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "End-to-end short circuit, HV phase S, with LV winding shorted."
+      - sequence: 9
+        code: EESC_HV_T
+        category: EESC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "End-to-end short circuit, HV phase T, with LV winding shorted."
+
+      # ---- 10-12: Capacitive inter-winding HV-LV (HV energised, LV floating) ----
+      - sequence: 10
+        code: CIW_HV_LV_R
+        category: CIW_HV_LV
+        winding: HV-LV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "2U"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→LV, phase R. HV energised, LV floating."
+      - sequence: 11
+        code: CIW_HV_LV_S
+        category: CIW_HV_LV
+        winding: HV-LV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "2V"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→LV, phase S."
+      - sequence: 12
+        code: CIW_HV_LV_T
+        category: CIW_HV_LV
+        winding: HV-LV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "2W"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→LV, phase T."
+
+      # ---- 13-15: Inductive inter-winding HV-LV (HV energised, LV phase-shorted) ----
+      - sequence: 13
+        code: IIW_HV_LV_R
+        category: IIW_HV_LV
+        winding: HV-LV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "2U"
+        shorted_terminals: ["1N", "2N"]
+        grounded_terminals: ["1N", "2N"]
+        description: "Inductive inter-winding HV→LV, phase R. HV/LV unused ends grounded."
+      - sequence: 14
+        code: IIW_HV_LV_S
+        category: IIW_HV_LV
+        winding: HV-LV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "2V"
+        shorted_terminals: ["1N", "2N"]
+        grounded_terminals: ["1N", "2N"]
+        description: "Inductive inter-winding HV→LV, phase S."
+      - sequence: 15
+        code: IIW_HV_LV_T
+        category: IIW_HV_LV
+        winding: HV-LV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "2W"
+        shorted_terminals: ["1N", "2N"]
+        grounded_terminals: ["1N", "2N"]
+        description: "Inductive inter-winding HV→LV, phase T."
+
+  # ---------------------------------------------------------------------------
+  # 5.2 AUTO_WITH_TERTIARY_BROUGHT_OUT — 21 combinations
+  # Example fleet asset: 400/220/33 kV autotransformer with loaded tertiary
+  # APTRANSCO sample: 80 MVA file contains exactly these 21 sweeps + 1 placeholder
+  # ---------------------------------------------------------------------------
+  AUTO_WITH_TERTIARY_BROUGHT_OUT:
+    description: "Autotransformer with tertiary winding brought out to bushings. E.g. 400/220/33 kV."
+    minimum_recommended: 18
+    total: 21
+    combinations:
+      # ---- 1-3: EEOC HV (series winding) ----
+      - sequence: 1
+        code: EEOC_HV_R
+        category: EEOC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV (series winding) phase R."
+      - sequence: 2
+        code: EEOC_HV_S
+        category: EEOC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV (series winding) phase S."
+      - sequence: 3
+        code: EEOC_HV_T
+        category: EEOC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV (series winding) phase T."
+
+      # ---- 4-6: EEOC IV (intermediate-voltage / common winding) ----
+      - sequence: 4
+        code: EEOC_IV_R
+        category: EEOC_IV
+        winding: IV
+        phase: R
+        injection_terminal: "2U"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV (common winding) phase R."
+      - sequence: 5
+        code: EEOC_IV_S
+        category: EEOC_IV
+        winding: IV
+        phase: S
+        injection_terminal: "2V"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV (common winding) phase S."
+      - sequence: 6
+        code: EEOC_IV_T
+        category: EEOC_IV
+        winding: IV
+        phase: T
+        injection_terminal: "2W"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV (common winding) phase T."
+
+      # ---- 7-9: EEOC TV (tertiary delta) ----
+      - sequence: 7
+        code: EEOC_TV_R
+        category: EEOC_TV
+        winding: TV
+        phase: R
+        injection_terminal: "3U"
+        measurement_terminal: "3V"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC TV (tertiary delta) segment 3U-3V (pseudo phase R)."
+      - sequence: 8
+        code: EEOC_TV_S
+        category: EEOC_TV
+        winding: TV
+        phase: S
+        injection_terminal: "3V"
+        measurement_terminal: "3W"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC TV (tertiary delta) segment 3V-3W (pseudo phase S)."
+      - sequence: 9
+        code: EEOC_TV_T
+        category: EEOC_TV
+        winding: TV
+        phase: T
+        injection_terminal: "3W"
+        measurement_terminal: "3U"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC TV (tertiary delta) segment 3W-3U (pseudo phase T)."
+
+      # ---- 10-12: EESC HV with IV (LV) shorted ----
+      - sequence: 10
+        code: EESC_HV_R
+        category: EESC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase R with IV/LV winding shorted (2U-2V-2W)."
+      - sequence: 11
+        code: EESC_HV_S
+        category: EESC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase S with IV/LV winding shorted."
+      - sequence: 12
+        code: EESC_HV_T
+        category: EESC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase T with IV/LV winding shorted."
+
+      # ---- 13-15: EESC HV with TV (tertiary) shorted (per FRAX resolver: _TVS suffix) ----
+      - sequence: 13
+        code: EESC_HV_R_TVS
+        category: EESC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC HV phase R with tertiary delta shorted (3U-3V-3W)."
+      - sequence: 14
+        code: EESC_HV_S_TVS
+        category: EESC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC HV phase S with tertiary delta shorted."
+      - sequence: 15
+        code: EESC_HV_T_TVS
+        category: EESC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC HV phase T with tertiary delta shorted."
+
+      # ---- 16-18: EESC IV (LV) with TV (tertiary) shorted ----
+      - sequence: 16
+        code: EESC_IV_R_TVS
+        category: EESC_IV
+        winding: IV
+        phase: R
+        injection_terminal: "2U"
+        measurement_terminal: "2N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC IV phase R with tertiary delta shorted."
+      - sequence: 17
+        code: EESC_IV_S_TVS
+        category: EESC_IV
+        winding: IV
+        phase: S
+        injection_terminal: "2V"
+        measurement_terminal: "2N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC IV phase S with tertiary delta shorted."
+      - sequence: 18
+        code: EESC_IV_T_TVS
+        category: EESC_IV
+        winding: IV
+        phase: T
+        injection_terminal: "2W"
+        measurement_terminal: "2N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC IV phase T with tertiary delta shorted."
+
+      # ---- 19-21: CIW HV-TV (capacitive inter-winding HV → tertiary) ----
+      - sequence: 19
+        code: CIW_HV_TV_R
+        category: CIW_HV_TV
+        winding: HV-TV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "3U"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→TV, phase R."
+      - sequence: 20
+        code: CIW_HV_TV_S
+        category: CIW_HV_TV
+        winding: HV-TV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "3V"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→TV, phase S."
+      - sequence: 21
+        code: CIW_HV_TV_T
+        category: CIW_HV_TV
+        winding: HV-TV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "3W"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→TV, phase T."
+
+  # ---------------------------------------------------------------------------
+  # 5.3 AUTO_WITH_TERTIARY_BURIED — 12 combinations
+  # Tertiary winding cannot be externally accessed; UI banner enforces this.
+  # ---------------------------------------------------------------------------
+  AUTO_WITH_TERTIARY_BURIED:
+    description: "Autotransformer with buried tertiary (no external bushings on the tertiary delta)."
+    minimum_recommended: 9
+    total: 12
+    ui_banner: >
+      Tertiary winding is buried — tertiary-specific combinations are not
+      measurable on this transformer.
+    combinations:
+      # ---- 1-3: EEOC HV (series) ----
+      - sequence: 1
+        code: EEOC_HV_R
+        category: EEOC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV (series winding) phase R."
+      - sequence: 2
+        code: EEOC_HV_S
+        category: EEOC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV (series winding) phase S."
+      - sequence: 3
+        code: EEOC_HV_T
+        category: EEOC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV (series winding) phase T."
+
+      # ---- 4-6: EEOC IV (common winding) ----
+      - sequence: 4
+        code: EEOC_IV_R
+        category: EEOC_IV
+        winding: IV
+        phase: R
+        injection_terminal: "2U"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV (common winding) phase R."
+      - sequence: 5
+        code: EEOC_IV_S
+        category: EEOC_IV
+        winding: IV
+        phase: S
+        injection_terminal: "2V"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV (common winding) phase S."
+      - sequence: 6
+        code: EEOC_IV_T
+        category: EEOC_IV
+        winding: IV
+        phase: T
+        injection_terminal: "2W"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV (common winding) phase T."
+
+      # ---- 7-9: EESC HV with IV (LV) shorted ----
+      - sequence: 7
+        code: EESC_HV_R
+        category: EESC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase R with IV winding shorted."
+      - sequence: 8
+        code: EESC_HV_S
+        category: EESC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase S with IV winding shorted."
+      - sequence: 9
+        code: EESC_HV_T
+        category: EESC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase T with IV winding shorted."
+
+      # ---- 10-12: CIW HV-IV (capacitive inter-winding HV → common) ----
+      - sequence: 10
+        code: CIW_HV_IV_R
+        category: CIW_HV_IV
+        winding: HV-IV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "2U"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→IV, phase R."
+      - sequence: 11
+        code: CIW_HV_IV_S
+        category: CIW_HV_IV
+        winding: HV-IV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "2V"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→IV, phase S."
+      - sequence: 12
+        code: CIW_HV_IV_T
+        category: CIW_HV_IV
+        winding: HV-IV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "2W"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→IV, phase T."
+
+  # ---------------------------------------------------------------------------
+  # THREE_WINDING — pending engineering enumeration
+  # Spec v2 §3 lists this in the transformer_type ENUM but does not enumerate
+  # the combination set. Locked empty until APTRANSCO confirms the canonical
+  # row count and code list during Phase 1 review (see REFACTOR_MAP.md §6).
+  # ---------------------------------------------------------------------------
+  THREE_WINDING:
+    description: "Three-winding power transformer (HV + IV + LV) — three independently-rated windings."
+    minimum_recommended: null
+    total: null
+    pending_enumeration: true
+    notes: >
+      Combinations to be enumerated in Phase 1 once vector-group conventions
+      (e.g. YNyn0d11 vs YNynd) and applicability are confirmed with APTRANSCO.
+      Likely 24-36 combinations across the EEOC × {HV,IV,LV}, EESC pairwise-shorts,
+      CIW × 3 pairs, IIW × 3 pairs matrix.
+    combinations: []

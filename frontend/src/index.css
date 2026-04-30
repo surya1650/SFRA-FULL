@@ -1,0 +1,55 @@
+/* Bring in the design system tokens (Inter + JetBrains Mono, brand/slate
+   palettes, semantic verdict colours, dark-mode overrides). The file is
+   the verbatim handoff from docs/design/colors_and_type.css — edit the
+   handoff if you need to change tokens. */
+@import "./styles/design-tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    @apply h-full antialiased;
+    background: var(--surface-page);
+    color: var(--text-primary);
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+  }
+}
+
+@layer components {
+  /* Spec design-system shorthands so component code reads like the prototype. */
+  .ds-card {
+    @apply rounded-lg border bg-white shadow-card dark:bg-slate-800;
+    border-color: var(--border-default);
+    padding: var(--space-5);
+  }
+  .ds-btn-primary {
+    @apply rounded text-sm font-medium text-white transition-colors;
+    background: var(--color-brand-600);
+    padding: 6px 12px;
+  }
+  .ds-btn-primary:hover {
+    background: var(--color-brand-500);
+  }
+  .ds-btn-secondary {
+    @apply rounded text-sm font-medium text-white transition-colors;
+    background: var(--color-slate-700);
+    padding: 6px 12px;
+  }
+  .ds-btn-secondary:hover {
+    background: var(--color-slate-600);
+  }
+  .ds-label {
+    @apply text-xs font-medium uppercase tracking-wide;
+    color: var(--text-tertiary);
+  }
+  .ds-mono {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+}

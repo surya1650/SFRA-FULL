@@ -1,0 +1,36 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 16px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch { flex: 1; min-width: 58px; border-radius: 6px; overflow: hidden; }
+  .swatch-color { height: 48px; }
+  .swatch-label { padding: 4px 6px; background: white; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; }
+  .swatch-name { font-size: 11px; font-weight: 600; color: #334155; }
+  .swatch-hex  { font-size: 10px; color: #94a3b8; font-family: monospace; }
+  .title { font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+  .usage { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .use-chip { padding: 3px 8px; border-radius: 4px; font-size: 11px; border: 1px solid #e2e8f0; }
+</style></head><body>
+<div class="title">Neutral — Slate</div>
+<div class="row">
+  <div class="swatch"><div class="swatch-color" style="background:#f8fafc"></div><div class="swatch-label"><div class="swatch-name">50</div><div class="swatch-hex">#f8fafc</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#f1f5f9"></div><div class="swatch-label"><div class="swatch-name">100</div><div class="swatch-hex">#f1f5f9</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#e2e8f0"></div><div class="swatch-label"><div class="swatch-name">200</div><div class="swatch-hex">#e2e8f0</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#cbd5e1"></div><div class="swatch-label"><div class="swatch-name">300</div><div class="swatch-hex">#cbd5e1</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#94a3b8"></div><div class="swatch-label"><div class="swatch-name">400</div><div class="swatch-hex">#94a3b8</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#64748b"></div><div class="swatch-label"><div class="swatch-name">500</div><div class="swatch-hex">#64748b</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#475569"></div><div class="swatch-label"><div class="swatch-name">600</div><div class="swatch-hex">#475569</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#334155"></div><div class="swatch-label"><div class="swatch-name">700 ★</div><div class="swatch-hex">#334155</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#1e293b"></div><div class="swatch-label"><div class="swatch-name">800 ★</div><div class="swatch-hex">#1e293b</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#0f172a"></div><div class="swatch-label"><div class="swatch-name">900 ★</div><div class="swatch-hex">#0f172a</div></div></div>
+</div>
+<div class="usage">
+  <div class="use-chip" style="background:#f8fafc;color:#334155;">Page bg (light)</div>
+  <div class="use-chip" style="background:#ffffff;color:#334155;">Card bg (light)</div>
+  <div class="use-chip" style="background:#1e293b;color:#f1f5f9;">Card bg (dark)</div>
+  <div class="use-chip" style="background:#0f172a;color:#f1f5f9;">Page bg (dark)</div>
+  <div class="use-chip" style="background:#334155;color:white;">2nd btn</div>
+</div>
+</body></html>

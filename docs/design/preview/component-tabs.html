@@ -1,0 +1,35 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 0; }
+  .nav { background: white; border-bottom: 1px solid #e2e8f0; display: flex; overflow-x: auto; }
+  .tab { padding: 12px 16px; font-size: 13px; font-weight: 500; white-space: nowrap; border-bottom: 2px solid transparent; color: #475569; cursor: pointer; transition: color 0.15s; }
+  .tab.active { border-bottom-color: #2563eb; color: #1d4ed8; }
+  .tab:hover:not(.active) { color: #2563eb; }
+  .divider { margin: 12px 16px; height: 1px; background: #e2e8f0; }
+  .dark-nav { background: #1e293b; border-bottom-color: #334155; margin-top: 8px; }
+  .dark-tab { color: #94a3b8; }
+  .dark-tab.active { border-bottom-color: #2563eb; color: #93c5fd; }
+</style></head><body>
+<div style="padding: 10px 16px 6px; font-size:11px;font-weight:600;color:#64748b;letter-spacing:0.06em;text-transform:uppercase;">Navigation Tabs — Light</div>
+<div class="nav">
+  <div class="tab active">Dashboard</div>
+  <div class="tab">Upload & Configure</div>
+  <div class="tab">Traces & Graphs</div>
+  <div class="tab">Comparison & Indices</div>
+  <div class="tab">Failure Diagnosis</div>
+  <div class="tab">Modeling</div>
+  <div class="tab">Report</div>
+</div>
+<div style="padding: 10px 16px 6px; font-size:11px;font-weight:600;color:#64748b;letter-spacing:0.06em;text-transform:uppercase;margin-top:8px;">Navigation Tabs — Dark</div>
+<div class="nav dark-nav">
+  <div class="tab dark-tab active">Dashboard</div>
+  <div class="tab dark-tab">Upload & Configure</div>
+  <div class="tab dark-tab">Traces & Graphs</div>
+  <div class="tab dark-tab">Comparison & Indices</div>
+  <div class="tab dark-tab">Failure Diagnosis</div>
+  <div class="tab dark-tab">Modeling</div>
+  <div class="tab dark-tab">Report</div>
+</div>
+</body></html>

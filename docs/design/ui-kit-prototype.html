@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SFRA Diagnostic Tool — UI Kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+  body.dark { background: #0f172a; color: #f1f5f9; }
+
+  /* scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+  /* drag-over highlight */
+  .drag-over { border-color: #2563eb !important; background: #eff6ff !important; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useCallback, useMemo } = React;
+
+/* ── Design tokens ─────────────────────────────────────── */
+const T = {
+  brand600: '#2563eb', brand500: '#3b82f6', brand900: '#1e3a8a', brand50: '#eff6ff',
+  slate50:'#f8fafc', slate100:'#f1f5f9', slate200:'#e2e8f0', slate300:'#cbd5e1',
+  slate400:'#94a3b8', slate500:'#64748b', slate600:'#475569', slate700:'#334155',
+  slate800:'#1e293b', slate900:'#0f172a',
+};
+
+/* ── Helpers ───────────────────────────────────────────── */
+function fmt(v, d=4) {
+  if (v==null||isNaN(v)) return '–';
+  const a=Math.abs(v);
+  if (a!==0&&(a<1e-3||a>=1e4)) return v.toExponential(3);
+  return v.toFixed(d);
+}
+
+const TRACE_COLORS = ['#3b82f6','#f59e0b','#10b981','#f43f5e','#a855f7','#06b6d4'];
+
+const MOCK_TRACES = [
+  { id:'t1', label:'TR-A1 / HV winding / Ref', color: TRACE_COLORS[0], isRef: true, isTest: false },
+  { id:'t2', label:'TR-A1 / HV winding / Test', color: TRACE_COLORS[1], isRef: false, isTest: true },
+];
+
+const MOCK_RESULT = {
+  verdict: 'marginal',
+  severity: 'Slight Deformation',
+  severity_color: 'amber',
+  summary: 'Minor frequency shifts detected in the mid-high band. Monitor and re-test within 6 months.',
+  recommendation: 'Schedule a follow-up SFRA test. Consider dissolved gas analysis (DGA) to confirm.',
+  overall_indices: { CC:0.994231, SD:0.023412, ASLE:0.142310, CSD:0.018901, ED:1.2340e-2, MM:0.985600, SSRE:3.4120e-3, SSE:1.8020e-4 },
+  sub_bands: [
+    { name:'Low',     f_low:100,    f_high:1000,   verdict:'good',     indices:{CC:0.9991, ASLE:0.018} },
+    { name:'Medium',  f_low:1000,   f_high:100000, verdict:'marginal', indices:{CC:0.9612, ASLE:0.211} },
+    { name:'Mid-high',f_low:100000, f_high:600000, verdict:'marginal', indices:{CC:0.9341, ASLE:0.384} },
+    { name:'High',    f_low:600000, f_high:2000000,verdict:'unknown',  indices:{CC:null,   ASLE:null} },
+  ],
+};
+
+const FAILURE_MODES = [
+  { mode:'Axial displacement', confidence: 0.72, evidence:'Frequency shift in low-medium band' },
+  { mode:'Radial deformation', confidence: 0.38, evidence:'Mild amplitude change in mid-high band' },
+];
+
+const RESONANCE_SHIFTS = [
+  { kind:'resonance',      ref_frequency:12300,  test_frequency:12681, shift_percent:3.10, magnitude_delta_db:0.24 },
+  { kind:'resonance',      ref_frequency:84900,  test_frequency:87500, shift_percent:3.06, magnitude_delta_db:0.31 },
+  { kind:'anti_resonance', ref_frequency:340000, test_frequency:350200,shift_percent:3.00, magnitude_delta_db:0.08 },
+];
+
+const INDEX_LABELS = {
+  CC:'CC — Correlation Coefficient', SD:'SD — Spectrum Deviation',
+  ASLE:'ASLE — Abs. Sum Log Error',  CSD:'CSD — Comp. Std. Deviation',
+  ED:'ED — Euclidean Distance',       MM:'MM — Min/Max Ratio',
+  SSRE:'SSRE — Sum Squared Ratio Err.', SSE:'SSE — Sum Squared Error',
+};
+
+const TABS = [
+  {key:'overview',    label:'Dashboard'},
+  {key:'upload',      label:'Upload & Configure'},
+  {key:'traces',      label:'Traces & Graphs'},
+  {key:'comparison',  label:'Comparison & Indices'},
+  {key:'diagnosis',   label:'Failure Diagnosis'},
+  {key:'modeling',    label:'Modeling'},
+  {key:'report',      label:'Report'},
+];
+
+/* ── Verdict helpers ──────────────────────────────────── */
+function verdictStyle(v) {
+  if (v==='good')     return {background:'#d1fae5',color:'#065f46'};
+  if (v==='marginal') return {background:'#fef3c7',color:'#92400e'};
+  if (v==='bad')      return {background:'#ffe4e6',color:'#9f1239'};
+  if (v==='moderate') return {background:'#ffedd5',color:'#9a3412'};
+  if (v==='critical') return {background:'#fee2e2',color:'#991b1b'};
+  return {background:'#f1f5f9',color:'#334155'};
+}
+
+function VerdictBadge({v}) {
+  const s = verdictStyle(v||'unknown');
+  return (
+    <span style={{...s, padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.04em'}}>
+      {v||'unknown'}
+    </span>
+  );
+}
+
+/* ── Shared styled elements ────────────────────────────── */
+function Card({children, style, className}) {
+  return (
+    <div style={{background:'var(--card-bg)', border:'1px solid var(--border)', borderRadius:8,
+      boxShadow:'0 1px 3px rgba(0,0,0,0.10)', padding:20, ...style}}>
+      {children}
+    </div>
+  );
+}
+
+function Btn({children, variant='primary', onClick, disabled, style}) {
+  const base = {fontFamily:'Inter,sans-serif', fontSize:13, fontWeight:500,
+    padding:'6px 14px', borderRadius:4, border:'none', cursor:disabled?'not-allowed':'pointer',
+    opacity:disabled?0.5:1, transition:'background 0.12s', ...style};
+  const vars = variant==='primary'
+    ? {background:'#2563eb', color:'#fff'}
+    : {background:'#334155', color:'#fff'};
+  return <button style={{...base,...vars}} onClick={!disabled?onClick:undefined}>{children}</button>;
+}
+
+function SectionTitle({children}) {
+  return <h2 style={{fontSize:15, fontWeight:600, color:'var(--text-primary)', marginBottom:12}}>{children}</h2>;
+}
+
+/* ── SVG Frequency Plot (mock) ─────────────────────────── */
+function FreqPlot({dark}) {
+  const W=660, H=220;
+  // Generate fake SFRA curves
+  const genPath = (offset=0, phase=0) => {
+    const pts = [];
+    for (let i=0;i<200;i++) {
+      const x = 40 + (i/199)*(W-60);
+      // log-scale-ish frequency response
+      const t = i/199;
+      const y = H-30 - (
+        60 + 40*Math.sin(t*8+phase)*Math.exp(-t*2)
+        - 30*Math.pow(t,2)
+        + offset
+        + 20*Math.sin(t*20+phase)*Math.exp(-t*3)
+        - 10*Math.sin(t*50)*Math.exp(-t*4)
+      );
+      pts.push(`${i===0?'M':'L'}${x.toFixed(1)},${Math.max(10,Math.min(H-10,y)).toFixed(1)}`);
+    }
+    return pts.join(' ');
+  };
+
+  const bands = [
+    {x:40,w:70,label:'Low',color:'rgba(16,185,129,0.08)'},
+    {x:110,w:180,label:'Med',color:'rgba(245,158,11,0.08)'},
+    {x:290,w:200,label:'Mid-H',color:'rgba(249,115,22,0.08)'},
+    {x:490,w:170,label:'High',color:'rgba(148,163,184,0.06)'},
+  ];
+
+  const textColor = dark ? '#94a3b8' : '#64748b';
+  const gridColor = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:'block', borderRadius:6}}>
+      <rect width={W} height={H} fill={dark?'#1e293b':'#fff'} rx="6"/>
+      {/* sub-band shading */}
+      {bands.map(b=>(
+        <g key={b.label}>
+          <rect x={b.x} y={10} width={b.w} height={H-40} fill={b.color}/>
+          <text x={b.x+b.w/2} y={H-8} textAnchor="middle" fontSize={9} fill={textColor}>{b.label}</text>
+        </g>
+      ))}
+      {/* grid lines */}
+      {[0.25,0.5,0.75].map(t=>(
+        <line key={t} x1={40} x2={W-20} y1={10+t*(H-40)} y2={10+t*(H-40)} stroke={gridColor} strokeWidth={1}/>
+      ))}
+      {/* Y axis labels */}
+      {['-20','-40','-60','-80'].map((l,i)=>(
+        <text key={l} x={36} y={20+i*45} textAnchor="end" fontSize={9} fill={textColor}>{l}</text>
+      ))}
+      <text x={14} y={H/2} textAnchor="middle" fontSize={10} fill={textColor} transform={`rotate(-90,14,${H/2})`}>Magnitude (dB)</text>
+      {/* X axis labels */}
+      {['1k','10k','100k','1M'].map((l,i)=>(
+        <text key={l} x={110+i*135} y={H-2} textAnchor="middle" fontSize={9} fill={textColor}>{l}</text>
+      ))}
+      <text x={W/2} y={H} textAnchor="middle" fontSize={10} fill={textColor}>Frequency (Hz)</text>
+      {/* traces */}
+      <path d={genPath(0,0)} fill="none" stroke="#3b82f6" strokeWidth={2}/>
+      <path d={genPath(-4,0.3)} fill="none" stroke="#f59e0b" strokeWidth={2} strokeDasharray="4 2"/>
+      {/* legend */}
+      <rect x={W-160} y={14} width={140} height={42} fill={dark?'rgba(15,23,42,0.7)':'rgba(255,255,255,0.85)'} rx="4"/>
+      <line x1={W-152} y1={28} x2={W-132} y2={28} stroke="#3b82f6" strokeWidth={2}/>
+      <text x={W-128} y={31} fontSize={10} fill={textColor}>TR-A1 / HV / Ref</text>
+      <line x1={W-152} y1={44} x2={W-132} y2={44} stroke="#f59e0b" strokeWidth={2} strokeDasharray="4 2"/>
+      <text x={W-128} y={47} fontSize={10} fill={textColor}>TR-A1 / HV / Test</text>
+    </svg>
+  );
+}
+
+/* ── Dashboard Overview Tab ────────────────────────────── */
+function DashboardTab({dark, onGoTo}) {
+  const stats = [
+    {label:'Traces loaded', value:'2', sub:'2 files parsed'},
+    {label:'Overall verdict', value:'MARGINAL', sub:'CIGRE TB 812', color:'#92400e', bg:'#fef3c7'},
+    {label:'Resonance shifts', value:'3', sub:'max +3.10%'},
+    {label:'Standards checked', value:'3', sub:'CIGRE / IEC / IEEE'},
+  ];
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:16}}>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12}}>
+        {stats.map(s=>(
+          <Card key={s.label} style={{padding:16}}>
+            <div style={{fontSize:11, fontWeight:600, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6}}>{s.label}</div>
+            <div style={{fontSize:22, fontWeight:700, color:s.color||'var(--text-primary)',...(s.bg?{background:s.bg, padding:'2px 8px', borderRadius:4, display:'inline-block'}:{})}}>{s.value}</div>
+            <div style={{fontSize:11, color:'var(--text-tertiary)', marginTop:4}}>{s.sub}</div>
+          </Card>
+        ))}
+      </div>
+      <Card style={{padding:0, overflow:'hidden'}}>
+        <div style={{padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <span style={{fontSize:13, fontWeight:600, color:'var(--text-primary)'}}>Frequency Response — Quick View</span>
+          <Btn variant="secondary" style={{fontSize:11,padding:'4px 10px'}} onClick={()=>onGoTo('traces')}>Full view →</Btn>
+        </div>
+        <div style={{padding:12}}>
+          <FreqPlot dark={dark}/>
+        </div>
+      </Card>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+        <Card style={{padding:16}}>
+          <div style={{fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:10}}>Sub-band Summary</div>
+          {MOCK_RESULT.sub_bands.map(sb=>(
+            <div key={sb.name} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'5px 0', borderBottom:'1px solid var(--border)'}}>
+              <div>
+                <span style={{fontSize:13, fontWeight:500, color:'var(--text-primary)'}}>{sb.name}</span>
+                <span style={{fontSize:11, color:'var(--text-tertiary)', marginLeft:6}}>{(sb.f_low/1000).toFixed(0)}k – {(sb.f_high/1000).toFixed(0)}k Hz</span>
+              </div>
+              <VerdictBadge v={sb.verdict}/>
+            </div>
+          ))}
+        </Card>
+        <Card style={{padding:16}}>
+          <div style={{fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:10}}>Top Indices</div>
+          <table style={{width:'100%', borderCollapse:'collapse', fontSize:12}}>
+            <tbody>
+              {Object.entries(MOCK_RESULT.overall_indices).slice(0,5).map(([k,v])=>(
+                <tr key={k} style={{borderBottom:'1px solid var(--border)'}}>
+                  <td style={{padding:'5px 0', color:'var(--text-secondary)'}}>{k}</td>
+                  <td style={{padding:'5px 0', textAlign:'right', fontFamily:'JetBrains Mono,monospace', fontSize:12}}>{fmt(v,5)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ── Upload Tab ────────────────────────────────────────── */
+function UploadTab() {
+  const [dragging, setDragging] = useState(false);
+  const [files, setFiles] = useState(MOCK_TRACES);
+
+  return (
+    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16}}>
+      <Card>
+        <SectionTitle>Upload SFRA files</SectionTitle>
+        <div
+          onDragOver={e=>{e.preventDefault();setDragging(true);}}
+          onDragLeave={()=>setDragging(false)}
+          onDrop={e=>{e.preventDefault();setDragging(false);}}
+          style={{
+            border:`2px dashed ${dragging?'#2563eb':'#cbd5e1'}`,
+            borderRadius:8, padding:'32px 20px', textAlign:'center',
+            background: dragging?'#eff6ff':'var(--surface-hover)',
+            cursor:'pointer', transition:'all 0.15s',
+          }}
+        >
+          <div style={{fontSize:32, marginBottom:8}}>📂</div>
+          <div style={{fontSize:14, fontWeight:600, color:'var(--text-primary)'}}>Drop SFRA files here</div>
+          <div style={{fontSize:12, color:'var(--text-tertiary)', marginTop:4}}>.frax · .dbl · .fra · .csv · .tsv</div>
+          <div style={{marginTop:12}}>
+            <Btn variant="secondary" style={{fontSize:12}}>Browse files</Btn>
+          </div>
+        </div>
+        <div style={{marginTop:10, fontSize:11, color:'var(--text-tertiary)'}}>
+          Supported: Megger FRAX, Doble M5400, Omicron FRAnalyzer, CIGRE TB 342/812, IEC 60076-18, IEEE C57.149, generic CSV/TSV
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle>Loaded traces</SectionTitle>
+        {files.map((t,i)=>(
+          <div key={t.id} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid var(--border)'}}>
+            <div style={{width:14, height:14, borderRadius:'50%', background:t.color, flexShrink:0}}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13, fontWeight:500, color:'var(--text-primary)'}}>{t.label}</div>
+              <div style={{fontSize:11, color:'var(--text-tertiary)'}}>Auto-detected · FRAX XML · 800 pts</div>
+            </div>
+            <div style={{display:'flex', gap:4}}>
+              <span style={{...verdictStyle(t.isRef?null:null), background:t.isRef?'#dbeafe':'#f1f5f9', color:t.isRef?'#1d4ed8':'#64748b', fontSize:10, fontWeight:600, padding:'2px 6px', borderRadius:4}}>
+                {t.isRef?'REF':t.isTest?'TEST':'–'}
+              </span>
+            </div>
+            <button style={{border:'none', background:'none', color:'#94a3b8', cursor:'pointer', fontSize:16}}>×</button>
+          </div>
+        ))}
+        <div style={{marginTop:10, display:'flex', gap:8}}>
+          <div style={{flex:1}}>
+            <label style={{fontSize:11, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4}}>Reference</label>
+            <select style={{width:'100%', fontSize:12, padding:'5px 8px', borderRadius:4, border:'1px solid var(--border-input)', background:'var(--input-bg)', color:'var(--text-primary)', fontFamily:'Inter,sans-serif'}}>
+              <option>TR-A1 / HV winding / Ref</option>
+              <option>TR-A1 / HV winding / Test</option>
+            </select>
+          </div>
+          <div style={{flex:1}}>
+            <label style={{fontSize:11, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4}}>Test</label>
+            <select style={{width:'100%', fontSize:12, padding:'5px 8px', borderRadius:4, border:'1px solid var(--border-input)', background:'var(--input-bg)', color:'var(--text-primary)', fontFamily:'Inter,sans-serif'}}>
+              <option>TR-A1 / HV winding / Test</option>
+              <option>TR-A1 / HV winding / Ref</option>
+            </select>
+          </div>
+        </div>
+      </Card>
+
+      <Card style={{gridColumn:'1/-1'}}>
+        <SectionTitle>Test configuration</SectionTitle>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12}}>
+          {[
+            {label:'Test type', type:'select', opts:['End-to-end open circuit','End-to-end short circuit','Capacitive inter-winding']},
+            {label:'Winding phase', type:'select', opts:['Phase A','Phase B','Phase C']},
+            {label:'Winding side', type:'select', opts:['HV','LV','TV']},
+            {label:'Tap position', type:'select', opts:['1','2','3','4','5']},
+          ].map(f=>(
+            <div key={f.label}>
+              <label style={{fontSize:11, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4}}>{f.label}</label>
+              <select style={{width:'100%', fontSize:12, padding:'5px 8px', borderRadius:4, border:'1px solid var(--border-input)', background:'var(--input-bg)', color:'var(--text-primary)', fontFamily:'Inter,sans-serif'}}>
+                {f.opts.map(o=><option key={o}>{o}</option>)}
+              </select>
+            </div>
+          ))}
+          {[
+            {label:'Temperature (°C)', val:'23.5'},
+            {label:'Transformer name', val:'TR-A1-230kV'},
+          ].map(f=>(
+            <div key={f.label}>
+              <label style={{fontSize:11, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4}}>{f.label}</label>
+              <input defaultValue={f.val} style={{width:'100%', fontSize:12, padding:'5px 8px', borderRadius:4, border:'1px solid var(--border-input)', background:'var(--input-bg)', color:'var(--text-primary)', fontFamily:'Inter,sans-serif'}}/>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ── Traces Tab ────────────────────────────────────────── */
+function TracesTab({dark}) {
+  const [plotMode, setPlotMode] = useState('magnitude');
+  const [showSubbands, setShowSubbands] = useState(true);
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:12}}>
+      <Card style={{padding:12}}>
+        <div style={{display:'flex', flexWrap:'wrap', gap:12, alignItems:'center'}}>
+          <div style={{display:'flex', gap:4}}>
+            {['magnitude','phase'].map(m=>(
+              <button key={m} onClick={()=>setPlotMode(m)} style={{
+                fontFamily:'Inter,sans-serif', fontSize:12, fontWeight:500, padding:'5px 12px', borderRadius:4, border:'none', cursor:'pointer',
+                background: plotMode===m?'#2563eb':'var(--btn-inactive)', color: plotMode===m?'#fff':'var(--text-primary)',
+              }}>{m==='magnitude'?'Magnitude':'Phase'}</button>
+            ))}
+          </div>
+          <label style={{display:'flex', alignItems:'center', gap:6, fontSize:12, color:'var(--text-secondary)', cursor:'pointer'}}>
+            <input type="checkbox" checked={showSubbands} onChange={e=>setShowSubbands(e.target.checked)} style={{accentColor:'#2563eb'}}/>
+            Sub-band shading
+          </label>
+          <label style={{display:'flex', alignItems:'center', gap:6, fontSize:12, color:'var(--text-secondary)', cursor:'pointer'}}>
+            <input type="checkbox" style={{accentColor:'#2563eb'}}/>
+            Δ (test − ref) trace
+          </label>
+        </div>
+      </Card>
+      <Card style={{padding:12}}>
+        <FreqPlot dark={dark}/>
+        <div style={{marginTop:6, fontSize:11, color:'var(--text-tertiary)', textAlign:'center'}}>
+          Interactive Plotly.js chart in production · Log-scale X axis · {plotMode==='magnitude'?'Magnitude (dB)':'Phase (°)'}
+        </div>
+      </Card>
+      <Card style={{padding:12}}>
+        <div style={{fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:8}}>Trace Manager</div>
+        {MOCK_TRACES.map((t,i)=>(
+          <div key={t.id} style={{display:'flex', alignItems:'center', gap:10, padding:'6px 0', borderBottom:'1px solid var(--border)'}}>
+            <input type="checkbox" defaultChecked style={{accentColor:t.color}}/>
+            <div style={{width:12, height:12, borderRadius:2, background:t.color, cursor:'pointer'}}/>
+            <span style={{flex:1, fontSize:12, color:'var(--text-primary)'}}>{t.label}</span>
+            <span style={{fontSize:10, color:'var(--text-tertiary)', fontFamily:'JetBrains Mono,monospace'}}>800 pts</span>
+            <VerdictBadge v={t.isRef?null:'marginal'}/>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+/* ── Comparison Tab ────────────────────────────────────── */
+function ComparisonTab() {
+  const [ran, setRan] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const run = () => { setBusy(true); setTimeout(()=>{setBusy(false);setRan(true);},800); };
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:12}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{fontSize:13, color:'var(--text-secondary)'}}>Reference vs test numerical-indices assessment.</div>
+        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+          <select style={{fontSize:12,padding:'5px 8px',borderRadius:4,border:'1px solid var(--border-input)',background:'var(--input-bg)',color:'var(--text-primary)',fontFamily:'Inter,sans-serif'}}>
+            <option>All Standards</option><option>CIGRE TB 342/812</option><option>IEEE C57.149</option><option>IEC 60076-18</option>
+          </select>
+          <Btn onClick={run} disabled={busy}>{busy?'Analyzing…':'Run classification'}</Btn>
+        </div>
+      </div>
+
+      {ran && (
+        <>
+          {/* Severity Header */}
+          <div style={{borderRadius:8, overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}>
+            <div style={{background:'linear-gradient(90deg,#d97706,#f59e0b)', padding:'20px 24px', display:'flex', alignItems:'center', gap:16}}>
+              <div style={{width:52, height:52, borderRadius:'50%', background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, fontWeight:700, color:'#1c1917'}}>!</div>
+              <div>
+                <div style={{fontSize:11, textTransform:'uppercase', letterSpacing:'0.08em', opacity:0.8, color:'#1c1917'}}>Condition Assessment · CIGRE TB 812</div>
+                <div style={{fontSize:22, fontWeight:700, color:'#1c1917', marginTop:2}}>Slight Deformation</div>
+                <div style={{fontSize:13, opacity:0.9, color:'#1c1917', marginTop:3}}>{MOCK_RESULT.summary}</div>
+              </div>
+            </div>
+            <Card style={{borderRadius:0, padding:'12px 16px', boxShadow:'none'}}>
+              <div style={{fontSize:12, color:'var(--text-secondary)', marginBottom:8}}><strong>Recommendation:</strong> {MOCK_RESULT.recommendation}</div>
+              <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8}}>
+                {MOCK_RESULT.sub_bands.map(sb=>(
+                  <div key={sb.name} style={{...verdictStyle(sb.verdict), borderRadius:6, padding:'8px 10px', fontSize:11}}>
+                    <div style={{fontWeight:600}}>{sb.name}</div>
+                    <div style={{opacity:0.8, marginTop:1}}>{(sb.f_low/1000).toFixed(0)}k – {(sb.f_high>=1e6?(sb.f_high/1e6).toFixed(0)+'M':(sb.f_high/1000).toFixed(0)+'k')} Hz</div>
+                    <div style={{marginTop:3, textTransform:'capitalize'}}>{sb.verdict}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          {/* Overall verdict banner */}
+          <div style={{...verdictStyle(MOCK_RESULT.verdict), padding:'10px 16px', borderRadius:6, fontWeight:700, textTransform:'uppercase', textAlign:'center', letterSpacing:'0.05em', fontSize:14}}>
+            Overall verdict: {MOCK_RESULT.verdict}
+          </div>
+
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+            {/* Overall indices */}
+            <Card>
+              <div style={{fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:8}}>Overall indices</div>
+              <table style={{width:'100%', borderCollapse:'collapse', fontSize:12}}>
+                <tbody>
+                  {Object.entries(MOCK_RESULT.overall_indices).map(([k,v])=>(
+                    <tr key={k} style={{borderBottom:'1px solid var(--border)'}}>
+                      <td style={{padding:'5px 0', color:'var(--text-secondary)'}}>{INDEX_LABELS[k]||k}</td>
+                      <td style={{padding:'5px 0', textAlign:'right', fontFamily:'JetBrains Mono,monospace', fontSize:11}}>{fmt(v,6)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+
+            {/* Sub-band table */}
+            <Card>
+              <div style={{fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:8}}>CIGRE sub-bands</div>
+              <table style={{width:'100%', borderCollapse:'collapse', fontSize:12}}>
+                <thead>
+                  <tr style={{borderBottom:'2px solid var(--border-strong)'}}>
+                    {['Band','Range','CC','ASLE','Verdict'].map(h=>(
+                      <th key={h} style={{textAlign:h==='Band'||h==='Range'?'left':'right', padding:'5px 6px', fontSize:11, fontWeight:600, color:'var(--text-tertiary)', textTransform:'uppercase'}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {MOCK_RESULT.sub_bands.map(sb=>(
+                    <tr key={sb.name} style={{borderBottom:'1px solid var(--border)'}}>
+                      <td style={{padding:'5px 6px', color:'var(--text-primary)'}}>{sb.name}</td>
+                      <td style={{padding:'5px 6px', fontSize:10, color:'var(--text-tertiary)'}}>{(sb.f_low/1000).toFixed(0)}k–{sb.f_high>=1e6?(sb.f_high/1e6).toFixed(0)+'M':(sb.f_high/1000).toFixed(0)+'k'}</td>
+                      <td style={{padding:'5px 6px', textAlign:'right', fontFamily:'JetBrains Mono,monospace', fontSize:11}}>{fmt(sb.indices.CC)}</td>
+                      <td style={{padding:'5px 6px', textAlign:'right', fontFamily:'JetBrains Mono,monospace', fontSize:11}}>{fmt(sb.indices.ASLE,3)}</td>
+                      <td style={{padding:'5px 6px', textAlign:'right'}}><VerdictBadge v={sb.verdict}/></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          </div>
+
+          {/* Resonance shifts */}
+          <Card>
+            <div style={{fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:8}}>Resonance shifts</div>
+            <table style={{width:'100%', borderCollapse:'collapse', fontSize:12}}>
+              <thead>
+                <tr style={{borderBottom:'2px solid var(--border-strong)'}}>
+                  {['Kind','Ref (Hz)','Test (Hz)','Shift %','ΔMag (dB)'].map(h=>(
+                    <th key={h} style={{textAlign:h==='Kind'?'left':'right', padding:'5px 8px', fontSize:11, fontWeight:600, color:'var(--text-tertiary)', textTransform:'uppercase'}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {RESONANCE_SHIFTS.map((s,i)=>(
+                  <tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
+                    <td style={{padding:'5px 8px', color:'var(--text-primary)', textTransform:'capitalize'}}>{s.kind.replace('_',' ')}</td>
+                    <td style={{padding:'5px 8px', textAlign:'right', fontFamily:'JetBrains Mono,monospace'}}>{s.ref_frequency.toLocaleString()}</td>
+                    <td style={{padding:'5px 8px', textAlign:'right', fontFamily:'JetBrains Mono,monospace'}}>{s.test_frequency?.toLocaleString()??'–'}</td>
+                    <td style={{padding:'5px 8px', textAlign:'right', fontFamily:'JetBrains Mono,monospace', color:'#9a3412'}}>+{s.shift_percent.toFixed(2)}%</td>
+                    <td style={{padding:'5px 8px', textAlign:'right', fontFamily:'JetBrains Mono,monospace'}}>{s.magnitude_delta_db.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{fontSize:11, color:'var(--text-tertiary)', marginTop:6}}>Cross-correlation: lag 12, r = 0.9923</div>
+          </Card>
+        </>
+      )}
+      {!ran && (
+        <Card style={{textAlign:'center', padding:40, color:'var(--text-tertiary)', fontSize:13}}>
+          Select a reference and test trace, then click <strong>Run classification</strong>.
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* ── Diagnosis Tab ─────────────────────────────────────── */
+function DiagnosisTab() {
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:12}}>
+      <Card>
+        <SectionTitle>Failure diagnosis</SectionTitle>
+        <p style={{fontSize:13, color:'var(--text-secondary)', marginBottom:10}}>Showing diagnosis based on last classification run.</p>
+        {FAILURE_MODES.map((f,i)=>(
+          <div key={i} style={{padding:'10px 0', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12}}>
+            <div>
+              <div style={{fontSize:13, fontWeight:600, color:'var(--text-primary)'}}>{f.mode}</div>
+              <div style={{fontSize:12, color:'var(--text-secondary)', marginTop:2}}>{f.evidence}</div>
+            </div>
+            <div style={{textAlign:'right', flexShrink:0}}>
+              <div style={{fontSize:11, color:'var(--text-tertiary)', marginBottom:4}}>Confidence</div>
+              <div style={{width:80, height:6, background:'var(--border)', borderRadius:3, overflow:'hidden'}}>
+                <div style={{width:`${f.confidence*100}%`, height:'100%', background: f.confidence>0.6?'#f97316':'#f59e0b', borderRadius:3}}/>
+              </div>
+              <div style={{fontSize:11, fontFamily:'JetBrains Mono,monospace', color:'var(--text-primary)', marginTop:3}}>{(f.confidence*100).toFixed(0)}%</div>
+            </div>
+          </div>
+        ))}
+      </Card>
+      <Card>
+        <div style={{fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:10}}>Multi-standard verdicts</div>
+        {[
+          {std:'CIGRE TB 812', verdict:'marginal', note:'CC in medium band: 0.961'},
+          {std:'IEC 60076-18', verdict:'marginal', note:'SD exceeds 0.02 threshold'},
+          {std:'IEEE C57.149', verdict:'good', note:'All indices within tolerance'},
+        ].map(s=>(
+          <div key={s.std} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid var(--border)'}}>
+            <div>
+              <span style={{fontSize:13, fontWeight:500, color:'var(--text-primary)'}}>{s.std}</span>
+              <span style={{fontSize:11, color:'var(--text-tertiary)', marginLeft:8}}>{s.note}</span>
+            </div>
+            <VerdictBadge v={s.verdict}/>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+/* ── Modeling Tab ──────────────────────────────────────── */
+function ModelingTab({dark}) {
+  return (
+    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16}}>
+      <Card>
+        <SectionTitle>Transfer Function H(f)</SectionTitle>
+        <p style={{fontSize:12, color:'var(--text-secondary)', marginBottom:12}}>Reconstructed from magnitude/phase via vector fitting algorithm. Pole-zero decomposition shown below.</p>
+        <div style={{background:'var(--surface-hover)', borderRadius:6, padding:12, textAlign:'center', height:140, display:'flex', alignItems:'center', justifyContent:'center'}}>
+          <svg width="260" height="110" viewBox="0 0 260 110">
+            <rect width="260" height="110" fill={dark?'#1e293b':'#f8fafc'} rx="4"/>
+            {/* Nyquist-style curve placeholder */}
+            <ellipse cx="130" cy="55" rx="80" ry="35" fill="none" stroke="#3b82f6" strokeWidth="2"/>
+            <ellipse cx="130" cy="55" rx="50" ry="20" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 2"/>
+            <line x1="20" x2="240" y1="55" y2="55" stroke={dark?'#334155':'#e2e8f0'} strokeWidth="1"/>
+            <line x1="130" x2="130" y1="5" y2="105" stroke={dark?'#334155':'#e2e8f0'} strokeWidth="1"/>
+            <text x="235" y="52" fontSize="10" fill={dark?'#94a3b8':'#64748b'}>Re</text>
+            <text x="132" y="12" fontSize="10" fill={dark?'#94a3b8':'#64748b'}>Im</text>
+            <text x="60" y="48" fontSize="9" fill="#3b82f6">Ref</text>
+            <text x="60" y="74" fontSize="9" fill="#f59e0b">Test</text>
+          </svg>
+        </div>
+        <div style={{fontSize:11, color:'var(--text-tertiary)', marginTop:6, textAlign:'center'}}>Nyquist plot — vector fitting output</div>
+      </Card>
+      <Card>
+        <SectionTitle>Equivalent Circuit</SectionTitle>
+        <p style={{fontSize:12, color:'var(--text-secondary)', marginBottom:12}}>Ladder-network RLC parameters extracted from transfer function fit.</p>
+        <table style={{width:'100%', borderCollapse:'collapse', fontSize:12}}>
+          <thead>
+            <tr style={{borderBottom:'2px solid var(--border-strong)'}}>
+              <th style={{textAlign:'left', padding:'5px 0', fontSize:11, fontWeight:600, color:'var(--text-tertiary)', textTransform:'uppercase'}}>Parameter</th>
+              <th style={{textAlign:'right', padding:'5px 0', fontSize:11, fontWeight:600, color:'var(--text-tertiary)', textTransform:'uppercase'}}>Ref</th>
+              <th style={{textAlign:'right', padding:'5px 0', fontSize:11, fontWeight:600, color:'var(--text-tertiary)', textTransform:'uppercase'}}>Test</th>
+              <th style={{textAlign:'right', padding:'5px 0', fontSize:11, fontWeight:600, color:'var(--text-tertiary)', textTransform:'uppercase'}}>Δ%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              {p:'L₁ (μH)', r:'42.31', t:'42.18', d:'-0.31'},
+              {p:'C₁ (pF)', r:'124.5', t:'127.8', d:'+2.65'},
+              {p:'R₁ (Ω)', r:'0.821', t:'0.834', d:'+1.58'},
+              {p:'L₂ (μH)', r:'38.90', t:'38.84', d:'-0.15'},
+              {p:'C₂ (pF)', r:'98.2',  t:'102.1', d:'+3.97'},
+            ].map(r=>(
+              <tr key={r.p} style={{borderBottom:'1px solid var(--border)'}}>
+                <td style={{padding:'5px 0', color:'var(--text-secondary)'}}>{r.p}</td>
+                <td style={{padding:'5px 0', textAlign:'right', fontFamily:'JetBrains Mono,monospace'}}>{r.r}</td>
+                <td style={{padding:'5px 0', textAlign:'right', fontFamily:'JetBrains Mono,monospace'}}>{r.t}</td>
+                <td style={{padding:'5px 0', textAlign:'right', fontFamily:'JetBrains Mono,monospace', color: parseFloat(r.d)>2?'#9a3412':parseFloat(r.d)<-2?'#9f1239':'var(--text-secondary)'}}>{r.d}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+/* ── Report Tab ────────────────────────────────────────── */
+function ReportTab() {
+  const [notes, setNotes] = useState('');
+  return (
+    <Card>
+      <SectionTitle>Report export</SectionTitle>
+      <p style={{fontSize:13, color:'var(--text-secondary)', marginBottom:12}}>Download a PDF or CSV report for the current reference/test pair.</p>
+      <div style={{marginBottom:12}}>
+        <label style={{display:'block', fontSize:12, fontWeight:600, color:'var(--text-secondary)', marginBottom:4}}>Report notes</label>
+        <textarea
+          rows={3} value={notes} onChange={e=>setNotes(e.target.value)}
+          placeholder="Optional notes included in the PDF report…"
+          style={{width:'100%', fontSize:13, borderRadius:4, border:'1px solid var(--border-input)', background:'var(--input-bg)', color:'var(--text-primary)', padding:'8px 10px', fontFamily:'Inter,sans-serif', resize:'vertical'}}
+        />
+      </div>
+      <div style={{display:'flex', gap:8}}>
+        <Btn>Download PDF</Btn>
+        <Btn variant="secondary">Download CSV</Btn>
+      </div>
+      <div style={{marginTop:16, padding:12, background:'var(--surface-hover)', borderRadius:6, fontSize:12, color:'var(--text-secondary)'}}>
+        <strong>Report will include:</strong> header, transformer nameplate, test configuration, frequency response charts, comparison indices, sub-band verdicts, resonance shift table, failure mode diagnosis, multi-standard verdicts, recommendations.
+      </div>
+    </Card>
+  );
+}
+
+/* ── Main App ──────────────────────────────────────────── */
+function App() {
+  const [dark, setDark] = useState(false);
+  const [tab, setTab] = useState('overview');
+
+  const css = `
+    :root {
+      --card-bg: ${dark?'#1e293b':'#ffffff'};
+      --border: ${dark?'#334155':'#e2e8f0'};
+      --border-strong: ${dark?'#475569':'#cbd5e1'};
+      --border-input: ${dark?'#475569':'#cbd5e1'};
+      --text-primary: ${dark?'#f1f5f9':'#0f172a'};
+      --text-secondary: ${dark?'#cbd5e1':'#475569'};
+      --text-tertiary: ${dark?'#64748b':'#94a3b8'};
+      --surface-hover: ${dark?'#0f172a':'#f8fafc'};
+      --btn-inactive: ${dark?'#334155':'#e2e8f0'};
+      --input-bg: ${dark?'#1e293b':'#ffffff'};
+    }
+    body { background: ${dark?'#0f172a':'#f8fafc'}; }
+  `;
+
+  const tabContent = {
+    overview:   <DashboardTab dark={dark} onGoTo={setTab}/>,
+    upload:     <UploadTab/>,
+    traces:     <TracesTab dark={dark}/>,
+    comparison: <ComparisonTab/>,
+    diagnosis:  <DiagnosisTab/>,
+    modeling:   <ModelingTab dark={dark}/>,
+    report:     <ReportTab/>,
+  };
+
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{__html: css}}/>
+      <div style={{minHeight:'100vh', fontFamily:'Inter,sans-serif', color:'var(--text-primary)'}}>
+        {/* Header */}
+        <header style={{background:'linear-gradient(90deg, #1e3a8a, #2563eb)', color:'white', boxShadow:'0 2px 6px rgba(0,0,0,0.2)'}}>
+          <div style={{maxWidth:1280, margin:'0 auto', padding:'14px 24px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:22, fontWeight:700, letterSpacing:'-0.01em'}}>SFRA Diagnostic Tool</div>
+              <div style={{fontSize:12, color:'rgba(255,255,255,0.75)', marginTop:2}}>
+                Sweep Frequency Response Analysis for power transformers · CIGRE TB 342 / IEC 60076-18 / IEEE C57.149
+              </div>
+            </div>
+            <button onClick={()=>setDark(d=>!d)} style={{
+              background:'rgba(255,255,255,0.12)', color:'white', border:'none', fontFamily:'Inter,sans-serif',
+              fontSize:12, fontWeight:500, padding:'6px 14px', borderRadius:4, cursor:'pointer',
+            }}>
+              {dark ? '☀ Light' : '🌙 Dark'}
+            </button>
+          </div>
+        </header>
+
+        {/* Tab nav */}
+        <nav style={{background:'var(--card-bg)', borderBottom:'1px solid var(--border)'}}>
+          <div style={{maxWidth:1280, margin:'0 auto', padding:'0 24px', display:'flex', overflowX:'auto'}}>
+            {TABS.map(t=>(
+              <button key={t.key} onClick={()=>setTab(t.key)} style={{
+                fontFamily:'Inter,sans-serif', fontSize:13, fontWeight:500, padding:'12px 16px', whiteSpace:'nowrap',
+                border:'none', borderBottom: tab===t.key?'2px solid #2563eb':'2px solid transparent',
+                background:'transparent', color: tab===t.key?(dark?'#93c5fd':'#1d4ed8'):'var(--text-secondary)',
+                cursor:'pointer', transition:'color 0.12s',
+              }}>{t.label}</button>
+            ))}
+          </div>
+        </nav>
+
+        {/* Content */}
+        <main style={{maxWidth:1280, margin:'0 auto', padding:24}}>
+          {tabContent[tab]}
+        </main>
+
+        <footer style={{maxWidth:1280, margin:'0 auto', padding:'12px 24px', textAlign:'center', fontSize:11, color:'var(--text-tertiary)'}}>
+          SFRA Diagnostic Tool · Educational / engineering use
+        </footer>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

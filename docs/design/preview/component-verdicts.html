@@ -1,0 +1,41 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 16px; }
+  .title { font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+  .badge { padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .verdict-good     { background: #d1fae5; color: #065f46; }
+  .verdict-marginal { background: #fef3c7; color: #92400e; }
+  .verdict-bad      { background: #ffe4e6; color: #9f1239; }
+  .verdict-unknown  { background: #f1f5f9; color: #334155; }
+  .verdict-moderate { background: #ffedd5; color: #9a3412; }
+  .verdict-critical { background: #fee2e2; color: #991b1b; }
+  .sub { font-size: 11px; color: #94a3b8; margin-bottom: 5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 5px 8px; border-bottom: 2px solid #cbd5e1; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+  td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+</style></head><body>
+<div class="title">Verdict Badges & Table Cells</div>
+<div class="sub">Standalone badges</div>
+<div class="row">
+  <span class="badge verdict-good">GOOD</span>
+  <span class="badge verdict-marginal">MARGINAL</span>
+  <span class="badge verdict-moderate">MODERATE</span>
+  <span class="badge verdict-bad">BAD</span>
+  <span class="badge verdict-critical">CRITICAL</span>
+  <span class="badge verdict-unknown">UNKNOWN</span>
+</div>
+<div class="sub">In a CIGRE sub-band table</div>
+<table>
+  <thead><tr><th>Band</th><th>Range</th><th class="mono">CC</th><th class="mono">ASLE</th><th>Verdict</th></tr></thead>
+  <tbody>
+    <tr><td>Low</td><td style="font-size:11px;color:#94a3b8;">100–1 000 Hz</td><td class="mono">0.9987</td><td class="mono">0.021</td><td><span class="badge verdict-good">good</span></td></tr>
+    <tr><td>Medium</td><td style="font-size:11px;color:#94a3b8;">1 000–100 kHz</td><td class="mono">0.9421</td><td class="mono">0.184</td><td><span class="badge verdict-marginal">marginal</span></td></tr>
+    <tr><td>Mid-high</td><td style="font-size:11px;color:#94a3b8;">100–600 kHz</td><td class="mono">0.7832</td><td class="mono">0.642</td><td><span class="badge verdict-bad">bad</span></td></tr>
+    <tr><td>High</td><td style="font-size:11px;color:#94a3b8;">600 kHz–2 MHz</td><td class="mono">–</td><td class="mono">–</td><td><span class="badge verdict-unknown">unknown</span></td></tr>
+  </tbody>
+</table>
+</body></html>

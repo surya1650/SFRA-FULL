@@ -1,0 +1,41 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; padding: 16px; }
+  .title { font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .sub { font-size: 11px; color: #94a3b8; margin-bottom: 6px; }
+  button { font-family: 'Inter', sans-serif; cursor: pointer; border: none; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 4px; }
+  .primary   { background: #2563eb; color: white; }
+  .primary:hover { background: #3b82f6; }
+  .secondary { background: #334155; color: white; }
+  .secondary:hover { background: #475569; }
+  .toggle-on  { background: #2563eb; color: white; padding: 6px 14px; border-radius: 4px; }
+  .toggle-off { background: #e2e8f0; color: #334155; padding: 6px 14px; border-radius: 4px; }
+  .disabled  { background: #2563eb; color: white; opacity: 0.5; cursor: not-allowed; }
+  .sep { width: 100%; height: 1px; background: #e2e8f0; margin: 4px 0; }
+</style></head><body>
+<div class="title">Buttons</div>
+<div class="sub">Primary</div>
+<div class="row">
+  <button class="primary">Run classification</button>
+  <button class="primary">Analyze</button>
+  <button class="primary">Download PDF</button>
+</div>
+<div class="sub">Secondary / Neutral</div>
+<div class="row">
+  <button class="secondary">Download CSV</button>
+  <button class="secondary">PDF</button>
+</div>
+<div class="sub">Toggle (plot mode)</div>
+<div class="row">
+  <span class="toggle-on">Magnitude</span>
+  <span class="toggle-off">Phase</span>
+</div>
+<div class="sub">Disabled</div>
+<div class="row">
+  <button class="disabled" disabled>Analyze</button>
+  <button style="background:#334155;color:white;opacity:0.5;padding:6px 14px;border-radius:4px;cursor:not-allowed;font-family:Inter,sans-serif;font-size:13px;border:none;" disabled>PDF</button>
+</div>
+</body></html>
