@@ -93,6 +93,30 @@ def _cmd_validate_catalogue(args: argparse.Namespace) -> int:
     return int(validate_catalogue.main())
 
 
+def _cmd_seed_db(args: argparse.Namespace) -> int:
+    """Seed the combination table from the YAML catalogue."""
+    here = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(here / "scripts"))
+    import seed_combinations  # type: ignore[import-not-found]
+    n = seed_combinations.seed(args.database_url)
+    print(f"Seeded {n} combinations.")
+    return 0
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    """Run the FastAPI app under uvicorn (dev server)."""
+    import uvicorn
+
+    uvicorn.run(
+        "sfra_full.api.app:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        log_level="info",
+    )
+    return 0
+
+
 def _cmd_version(args: argparse.Namespace) -> int:
     print(f"sfra-full {__version__}")
     return 0
@@ -119,6 +143,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     v = sub.add_parser("validate-catalogue", help="Run the YAML catalogue validator.")
     v.set_defaults(func=_cmd_validate_catalogue)
+
+    s = sub.add_parser("seed-db", help="Seed the combination table from the YAML catalogue.")
+    s.add_argument("--database-url", help="Override SFRA_DATABASE_URL")
+    s.set_defaults(func=_cmd_seed_db)
+
+    se = sub.add_parser("serve", help="Run the FastAPI dev server (uvicorn).")
+    se.add_argument("--host", default="127.0.0.1")
+    se.add_argument("--port", type=int, default=8000)
+    se.add_argument("--reload", action="store_true")
+    se.set_defaults(func=_cmd_serve)
 
     ver = sub.add_parser("version", help="Print engine version.")
     ver.set_defaults(func=_cmd_version)
