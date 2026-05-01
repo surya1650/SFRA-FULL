@@ -127,6 +127,74 @@ covers 40% — re-test with matching range".
 
 ---
 
+## 2026-04-30 · DB enum storage — by VALUE, not NAME
+**Choice**: `AnalysisResult.mode` and `.severity` columns set
+``values_callable=lambda x: [e.value for e in x]`` on the SQLAlchemy
+`Enum` type so the **value** of each enum member is persisted (e.g.
+`'comparative'`, `'NORMAL'`), not the Python member name (e.g.
+`COMPARATIVE`, `NORMAL`).
+**Why**: the CHECK constraint
+```
+(mode = 'reference_missing_analysis' AND reference_trace_id IS NULL)
+OR (mode = 'comparative' AND reference_trace_id IS NOT NULL)
+```
+is expressed against enum values. Without this setting SQLAlchemy stores
+the Python NAME (`REFERENCE_MISSING_ANALYSIS`), which mismatches the
+constraint and aborts every Mode 2 insert.
+
+---
+
+## 2026-04-30 · In-memory SQLite vs file-backed for tests
+**Choice**: API integration tests use a file-backed SQLite under
+``tmp_path`` rather than ``sqlite://``.
+**Why**: `:memory:` SQLite is per-connection. FastAPI's TestClient opens a
+fresh connection per request, so the schema created by `Base.metadata.
+create_all` is invisible to subsequent requests. File-based SQLite keeps
+all connections pointing at the same on-disk database. Production uses
+PostgreSQL via `SFRA_DATABASE_URL` and the issue does not arise.
+
+---
+
+## 2026-04-30 · Trace storage — BYTEA arrays + filesystem raw bytes
+**Choice**: Spec v2 §3 says BYTEA arrays in the DB; spec v1 said
+filesystem only. We do BOTH:
+- **BYTEA columns** on `Trace.frequency_hz` / `magnitude_db` / `phase_deg`
+  hold the parsed numpy arrays via `numpy.save` (compact, self-contained,
+  copies cleanly with the DB).
+- **Filesystem** under `data/storage/<serial>/cycle_NNN/<combo>/<role>/`
+  keeps a forensic copy of the raw uploaded bytes alongside its SHA-256
+  on the row. The raw file is what audit reviewers can re-parse should
+  the analysis pipeline ever change.
+**Why**: BYTEA in DB is fast for analysis re-runs (no disk hit), but the
+raw bytes are needed for forensic re-parsing and as the integrity anchor
+(hash chain). Storing both is cheap and unambiguous.
+
+---
+
+## 2026-04-30 · Open-cycle auto-close on new cycle creation
+**Choice**: `POST /api/transformers/{id}/cycles` auto-closes any existing
+open cycle by setting its `cycle_end_date` to the new cycle's
+`cycle_start_date`.
+**Why**: spec v2 §3 says "at most one open cycle per transformer" but
+doesn't specify how the transition happens. Auto-closing on open is the
+natural workflow — the engineer who opens a post-overhaul cycle
+implicitly declares the prior cycle's references retired. The closed
+cycle's data remains read-only browsable.
+
+---
+
+## 2026-04-30 · Single endpoint for both upload paths
+**Choice**: `POST /api/sessions/{id}/upload` handles both spec v2 §6.1
+paths (single-trace + batch FRAX) via the presence/absence of the
+`combination_code` form field. No separate batch endpoint.
+**Why**: single code path = single test surface. Batch FRAX just sets
+`combination_code=None` and the resolver assigns codes per sweep;
+single-trace overrides with the explicit code. Sweeps that fail
+resolution come back in `unmapped_sweeps` so the UI can prompt
+manually — no upload ever fails outright on resolution.
+
+---
+
 ## 2026-04-25 · Pole-fit algorithm
 **Choice**: `transfer.fit_poles` uses `scipy.signal.invfreqs` per spec v2
 §7.4 step 3, with order auto-search across (6, 8, 10). Upstream uses a

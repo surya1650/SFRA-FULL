@@ -3,6 +3,93 @@
 All notable changes to the APTRANSCO SFRA platform. Dates use ISO-8601.
 Keep entries newest-first.
 
+## [0.2.0-phase1] · 2026-04-30
+
+### Added — DB layer
+- `src/sfra_full/db/` — SQLAlchemy 2.x typed declarative models for all six
+  spec v2 §3 tables: `Transformer`, `OverhaulCycle`, `TestSession`,
+  `Combination`, `Trace`, `AnalysisResult`. Naming convention enforced
+  for stable Alembic autogenerate.
+- `db/enums.py` — `TransformerType`, `InterventionType`, `SessionType`,
+  `TraceRole`, `SourceFormat`, `AnalysisModeDB`, `SeverityDB`. Mirrors
+  of the analysis-side enums with bidirectional converters.
+- `db/array_helpers.py` — numpy ↔ bytes round-trip via `numpy.save`
+  (BYTEA columns, spec v2 §3). `allow_pickle=False` always.
+- `db/base.py` — declarative `Base`, engine + sessionmaker factories.
+  Auto-selects SQLite (default, dev) vs PostgreSQL (prod) based on
+  `SFRA_DATABASE_URL`.
+- AnalysisResult.mode + .severity stored as enum **values** (via
+  `values_callable`) so the CHECK constraint
+  `(mode = 'reference_missing_analysis' AND reference_trace_id IS NULL)
+   OR (mode = 'comparative' AND reference_trace_id IS NOT NULL)` works.
+
+### Added — storage
+- `src/sfra_full/storage/filesystem.py` — `FilesystemStorage` with the
+  spec v2 §2 layout (`<serial>/cycle_NNN/<combo>/<role>/<sha8>_<file>`),
+  SHA-256 keyed, idempotent on identical content, path-traversal safe.
+
+### Added — Alembic
+- `alembic.ini` + `alembic/env.py` + `alembic/versions/20260426_0001_initial.py`
+  — first migration emits the full spec v2 §3 schema.
+
+### Added — seeder
+- `scripts/seed_combinations.py` — upserts the YAML catalogue (48 rows)
+  into the `combination` table. Idempotent.
+
+### Added — FastAPI app + 16 routes
+- `src/sfra_full/api/app.py` — `create_app(database_url, storage_root,
+  create_schema)` factory. Wires DB engine + filesystem storage onto
+  `app.state` so tests can inject custom values.
+- `src/sfra_full/api/routes/health.py` — `GET /api/health`.
+- `src/sfra_full/api/routes/standards.py` — `GET /api/standards/{combinations,bands}`,
+  with YAML fallback when the DB hasn't been seeded yet.
+- `src/sfra_full/api/routes/transformers.py` — `POST/GET /api/transformers`,
+  `GET /api/transformers/{id}`, `POST/GET /api/transformers/{id}/cycles`.
+  Opening a new cycle auto-closes the prior open cycle (spec v2 §3
+  invariant: at most one open cycle per transformer).
+- `src/sfra_full/api/routes/sessions.py` — `POST /api/transformers/{id}/sessions`,
+  `GET /api/sessions/{id}`, `POST /api/sessions/{id}/upload`. The upload
+  endpoint handles BOTH spec v2 §6.1 paths in one route:
+    - **Single-trace**: caller passes `combination_code` form param.
+    - **Batch FRAX**: caller leaves it empty; the parser auto-explodes
+      and the resolver maps each sweep. Sweeps that don't resolve are
+      reported in `unmapped_sweeps` with their suggested code.
+- `src/sfra_full/api/routes/traces.py` — `GET /api/traces/{id}` (metadata)
+  and `GET /api/traces/{id}/data` (decoded numpy arrays for plotting).
+- `src/sfra_full/api/routes/analyses.py` — `POST /api/sessions/{id}/analyse`
+  iterates every TESTED trace, finds its REFERENCE counterpart in the
+  active cycle (matched by combination_id), and dispatches to Mode 1 or
+  Mode 2. Idempotent — re-running supersedes previous results.
+
+### Added — CLI
+- `sfra-full seed-db [--database-url]` — run the seeder.
+- `sfra-full serve [--host --port --reload]` — run uvicorn dev server.
+
+### Added — integration tests
+- `tests/integration/test_db.py` — schema build, FK enforcement, the
+  full Transformer → OverhaulCycle → TestSession → Trace chain, seeder.
+- `tests/integration/test_storage.py` — filesystem layout, SHA-256
+  idempotency, path-traversal safety.
+- `tests/integration/test_api.py` — full §6 flow:
+  - Health, standards fallback to YAML.
+  - Transformer CRUD + duplicate-serial conflict.
+  - Cycle auto-close on new open.
+  - **Spec v2 §6.2 invariant**: tested-only upload → Mode 2; reference
+    arrival in same cycle → re-analyse switches to Mode 1.
+  - Unmapped sweep reporting (no fail).
+  - Trace data decode.
+
+### Test status
+- **61 / 61 tests passing**, 79 % coverage on `src/sfra_full/*`.
+- 16 API endpoints registered, OpenAPI schema published at `/openapi.json`.
+
+### Phase 1 → Phase 2 handoff
+Remaining for Phase 2: frontend wiring to `/api/*`, PDF/XLSX report
+generators, auth (JWT + Engineer/Reviewer/Admin), OEM-specific parsers,
+THREE_WINDING combination enumeration, real APTRANSCO FRAX fixtures.
+
+---
+
 ## [0.1.0-phase0] · 2026-04-25 to 2026-04-26
 
 ### Added — Phase 0 foundations
