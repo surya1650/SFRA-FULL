@@ -11,7 +11,15 @@ once written.
 """
 from __future__ import annotations
 
+from .chain import compute_hash, latest_hash, verify_chain
 from .models import AuditAction, AuditEvent
 from .recorder import record_event
 
-__all__ = ["AuditAction", "AuditEvent", "record_event"]
+__all__ = [
+    "AuditAction",
+    "AuditEvent",
+    "compute_hash",
+    "latest_hash",
+    "record_event",
+    "verify_chain",
+]

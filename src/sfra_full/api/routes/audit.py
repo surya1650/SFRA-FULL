@@ -14,8 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from sfra_full.api.deps import get_session
-from sfra_full.audit import AuditAction, AuditEvent
-from sfra_full.auth import require_reviewer
+from sfra_full.audit import AuditAction, AuditEvent, verify_chain
+from sfra_full.auth import require_admin, require_reviewer
 
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
@@ -35,6 +35,14 @@ class AuditEventOut(BaseModel):
     response_status: Optional[int]
     detail: Optional[dict[str, Any]]
     occurred_at: datetime
+    prev_hash: Optional[str]
+    current_hash: Optional[str]
+
+
+class ChainVerifyResponse(BaseModel):
+    ok: bool
+    first_bad_id: Optional[str]
+    n_rows: int
 
 
 @router.get("", response_model=list[AuditEventOut], dependencies=[Depends(require_reviewer)])
@@ -59,3 +67,23 @@ def list_events(
     if before:
         stmt = stmt.where(AuditEvent.occurred_at < before)
     return list(session.scalars(stmt))
+
+
+@router.get(
+    "/verify",
+    response_model=ChainVerifyResponse,
+    dependencies=[Depends(require_admin)],
+)
+def verify_audit_chain(session: Session = Depends(get_session)) -> ChainVerifyResponse:
+    """Recompute and verify the tamper-evident audit hash chain.
+
+    Returns ``ok=true`` on a clean chain, otherwise ``first_bad_id`` is
+    the earliest divergence — points to the tampered/missing/reordered
+    row. Counts every row included in the verification (including the
+    bad one if any) for operator context.
+    """
+    from sqlalchemy import func
+    from sfra_full.audit.models import AuditEvent as _AE
+    n = int(session.scalar(select(func.count()).select_from(_AE)) or 0)
+    ok, bad = verify_chain(session)
+    return ChainVerifyResponse(ok=ok, first_bad_id=bad, n_rows=n)

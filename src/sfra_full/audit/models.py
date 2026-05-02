@@ -63,10 +63,15 @@ class AuditAction(str, enum.Enum):
 
 
 class AuditEvent(Base):
-    """One immutable audit row.
+    """One immutable audit row with a tamper-evident hash chain.
 
-    Indexed on (actor, occurred_at), (action, occurred_at), and
-    (target_kind, target_id) so the common query patterns stay fast.
+    Each row stores ``current_hash = sha256(prev_hash || canonical(content))``.
+    Verifying the chain (see ``audit.chain.verify_chain``) detects any
+    UPDATE / DELETE / row-reorder even by an attacker with full DB
+    write access — the only way to produce a clean chain after tampering
+    is to recompute every hash from the tampered point forward, which
+    is detectable as a chain divergence vs an off-host backup of any
+    single row.
     """
 
     __tablename__ = "audit_event"
@@ -101,6 +106,10 @@ class AuditEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
+
+    # Tamper-evident chain (Phase 5).
+    prev_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    current_hash: Mapped[Optional[str]] = mapped_column(String(64))
 
 
 __all__ = ["AuditAction", "AuditEvent"]

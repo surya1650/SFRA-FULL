@@ -136,8 +136,8 @@ def test_xlsx_report_has_summary_and_per_combo_sheets(client):
     assert "EEOC_HV_R" in wb.sheetnames
 
     summary = wb["Summary"]
-    headers = [c.value for c in summary[1]]
-    assert "Combination" in headers
-    assert "Severity" in headers
+    header_row = [c.value for c in summary[1]]
+    assert "Combination" in header_row
+    assert "Severity" in header_row
     # At least one analysis row.
     assert summary.max_row >= 2
