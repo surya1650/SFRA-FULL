@@ -1,4 +1,5 @@
-"""POST /api/sessions/{id}/analyse · GET /api/analyses/{id}.
+"""POST /api/sessions/{id}/analyse · GET /api/analyses/{id} ·
+POST /api/analyses/{id}/review.
 
 Spec v2 §6.2 + Mode 2 directive:
 
@@ -12,15 +13,19 @@ replacing the previous row for that trace.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from sfra_full import __version__
 from sfra_full.api.deps import get_session
 from sfra_full.api.schemas import AnalysisResultOut, RunAnalysisResponse
+from sfra_full.audit import AuditAction, record_event
+from sfra_full.auth import User, require_engineer, require_reviewer
 from sfra_full.db import (
     AnalysisModeDB,
     AnalysisResult,
@@ -128,9 +133,15 @@ def _persist_outcome(
     "/api/sessions/{session_id}/analyse", response_model=RunAnalysisResponse
 )
 def analyse_session(
-    session_id: str, session: Session = Depends(get_session)
+    session_id: str,
+    session: Session = Depends(get_session),
 ) -> RunAnalysisResponse:
-    """Run Mode 1 / Mode 2 over every TESTED trace in the session."""
+    """Run Mode 1 / Mode 2 over every TESTED trace in the session.
+
+    Auth gate is intentionally open in Phase 4. Wire to ``require_engineer``
+    in Phase 5 once SSO + role assignment are confirmed with APTRANSCO.
+    """
+    actor: Optional[User] = None
     ts = session.get(TestSession, session_id)
     if ts is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
@@ -181,12 +192,93 @@ def analyse_session(
     for r in results:
         session.refresh(r)
 
+    record_event(
+        session,
+        action=AuditAction.ANALYSIS_RUN,
+        actor_id=actor.id if actor else None,
+        actor_email=actor.email if actor else None,
+        actor_role=actor.role.value if actor else None,
+        target_kind="test_session",
+        target_id=session_id,
+        request_method="POST",
+        request_path=f"/api/sessions/{session_id}/analyse",
+        response_status=200,
+        detail={
+            "n_results": len(results),
+            "mode_1": mode_1,
+            "mode_2": mode_2,
+        },
+        commit=True,
+    )
+
     return RunAnalysisResponse(
         n_results=len(results),
         mode_1_count=mode_1,
         mode_2_count=mode_2,
         results=[AnalysisResultOut.model_validate(r) for r in results],
     )
+
+
+# ---------------------------------------------------------------------------
+# Reviewer sign-off
+# ---------------------------------------------------------------------------
+class ReviewRequest(BaseModel):
+    """Spec v2 §11: a reviewer adds a remark and optionally locks the row."""
+
+    reviewer_remarks: str
+    accept: bool = True   # False → reject + reopen for engineer follow-up
+
+
+@router.post(
+    "/api/analyses/{analysis_id}/review",
+    response_model=AnalysisResultOut,
+)
+def review_analysis(
+    analysis_id: str,
+    payload: ReviewRequest,
+    session: Session = Depends(get_session),
+    actor: User = Depends(require_reviewer),
+) -> AnalysisResult:
+    """Reviewer sign-off on an AnalysisResult.
+
+    The reviewer's identity + remark + timestamp are written to the row,
+    and a corresponding ``ANALYSIS_REVIEW`` audit event is recorded.
+    A rejected review clears the reviewer fields so the engineer can
+    re-run the analysis.
+    """
+    ar = session.get(AnalysisResult, analysis_id)
+    if ar is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Analysis not found")
+
+    if payload.accept:
+        ar.reviewer_remarks = payload.reviewer_remarks
+        ar.reviewed_by = actor.email
+        ar.reviewed_at = datetime.now(timezone.utc)
+    else:
+        ar.reviewer_remarks = (payload.reviewer_remarks or "") + "\n[REJECTED — reopened]"
+        ar.reviewed_by = None
+        ar.reviewed_at = None
+
+    record_event(
+        session,
+        action=AuditAction.ANALYSIS_REVIEW,
+        actor_id=actor.id,
+        actor_email=actor.email,
+        actor_role=actor.role.value,
+        target_kind="analysis_result",
+        target_id=ar.id,
+        request_method="POST",
+        request_path=f"/api/analyses/{analysis_id}/review",
+        response_status=200,
+        detail={
+            "accept": payload.accept,
+            "tested_trace_id": ar.tested_trace_id,
+            "severity": ar.severity.value,
+        },
+    )
+    session.commit()
+    session.refresh(ar)
+    return ar
 
 
 @router.get("/api/analyses/{analysis_id}", response_model=AnalysisResultOut)

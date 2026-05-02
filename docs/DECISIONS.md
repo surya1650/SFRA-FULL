@@ -6,6 +6,39 @@ Keep entries chronological; never edit history.
 
 ---
 
+## 2026-05-02 · Audit hash chain — pre-assign id + occurred_at at recorder time
+**Choice**: in `audit/recorder.py`, the `id` (uuid hex) and
+`occurred_at` (UTC datetime, microsecond-truncated) are assigned at
+construction time, before the chain hash is computed. SQLAlchemy column
+defaults are NOT used for these fields on AuditEvent.
+**Why**: SQLAlchemy column defaults run at INSERT time, not at object
+construction. Computing the hash against an in-memory event whose `id`
+and `occurred_at` are still unset would produce a hash that doesn't
+match the row's final state — `verify_chain` then sees every row as
+tampered. The fix is to set the values eagerly so the hash is stable
+across the DB roundtrip.
+
+Datetimes are also normalised to UTC ISO-8601 with a `Z` suffix in the
+canonical payload so the hash matches between SQLite (which strips
+tzinfo on roundtrip) and Postgres (which preserves it).
+
+---
+
+## 2026-05-02 · Reviewer sign-off mutates the AnalysisResult row
+**Choice**: `POST /api/analyses/{id}/review` writes
+`reviewer_remarks`, `reviewed_by`, `reviewed_at` directly onto the
+existing AnalysisResult row, then audits the change. There is no
+separate `analysis_review` table.
+**Why**: spec v2 §3 lists those columns on AnalysisResult — keeping
+the review state on the same row keeps the report generators simple
+(one query, no join). The audit log carries the immutable history of
+who reviewed when, so re-running an analysis (which deletes the row)
+doesn't lose the review trail. Rejecting clears the reviewer fields
+so the row visibly returns to "unreviewed" status while the audit
+log retains both events.
+
+---
+
 ## 2026-04-30 · Audit log: append-only by convention, not by enforcement
 **Choice**: the audit subsystem ships only INSERT — there is no UPDATE
 or DELETE in the route handlers, the recorder, or any helper. Operators

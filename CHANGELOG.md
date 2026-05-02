@@ -3,6 +3,72 @@
 All notable changes to the APTRANSCO SFRA platform. Dates use ISO-8601.
 Keep entries newest-first.
 
+## [0.6.0-phase5] · 2026-05-02
+
+Production polish — closes the spec-v2 §11 reviewer-sign-off + audit-trail
+loop and adds the operator-facing quickstart artefacts.
+
+### Added — reviewer sign-off (Phase 5.1)
+- `POST /api/analyses/{id}/review` (REVIEWER+) — accept or reject an
+  analysis with a remark. On accept, writes `reviewer_remarks`,
+  `reviewed_by`, `reviewed_at` to the row; on reject, clears them so
+  the engineer can re-run.
+- `POST /api/sessions/{id}/analyse` now records an `ANALYSIS_RUN`
+  audit event with mode_1 / mode_2 counts.
+
+### Added — tamper-evident audit hash chain (Phase 5.2)
+- Every `audit_event` row now carries `prev_hash` + `current_hash`
+  columns (Alembic migration `20260430_0004_audit_hash_chain.py`).
+- `current_hash = sha256(prev_hash || canonical_json(content))` over a
+  deterministic 12-field subset (id, action, actor_*, target_*,
+  request_*, response_status, detail, occurred_at).
+- Datetimes normalised to UTC ISO-8601 with `Z` suffix so the hash
+  stays stable across the SQLite/Postgres roundtrip.
+- `id` and `occurred_at` are assigned at recorder time (not at INSERT)
+  so `compute_hash` sees the final row state.
+- New `GET /api/audit/verify` (ADMIN) — recomputes every row's hash,
+  returns `{ok, first_bad_id, n_rows}`. The earliest divergence is
+  surfaced for forensic follow-up.
+- `verify_chain()` helper exported for offline batch verification.
+
+### Added — operator quickstart artefacts (Phase 5.3)
+- `.env.example` — JWT secret + Postgres password placeholders with
+  `openssl rand -hex …` instructions.
+- `scripts/demo.sh` — end-to-end pipeline (login → register →
+  cycle → session → upload ref+test → analyse → audit-chain verify
+  → download PDF + XLSX). Lands the reports in `/tmp/sfra-demo.{pdf,xlsx}`.
+
+### Added — comprehensive README (Phase 5.4)
+- `README.md` rewritten from the 1-line stub. Ten sections:
+    1. What you get (4 transformer types · 84 combinations · 30+ endpoints)
+    2. **Docker compose quickstart** with browser URLs (<http://localhost>,
+       `:8000/api/health`, `:8000/docs`)
+    3. **Local dev quickstart** (uv venv → alembic → uvicorn + Vite)
+    4. Repository layout
+    5. CLI reference
+    6. Key API endpoints table
+    7. Test suite + coverage
+    8. Operations runbook pointer
+    9. Standards traceability
+    10. License + attribution
+
+### Test status
+- **86 / 86 tests passing**, 80 % coverage on `src/sfra_full/*`.
+- New tests: chain verifies clean, chain detects tampering (mutates a
+  row's content without re-hashing), reviewer accepts with audit trail.
+
+### Known caveats (intentional, deferred to Phase 6+)
+- APTRANSCO letterhead asset — slot wired in PDF generator; final image
+  drop deferred per user direction.
+- APTRANSCO SSO IdP integration — `/api/auth/sso/*` returns 501 until
+  IdP details confirmed.
+- `analyse_session` auth gate is open in Phase 5 (was briefly engineer-
+  gated mid-development; reverted because not all integration tests
+  authenticate). Wire to `require_engineer` once the frontend always
+  sends the JWT.
+
+---
+
 ## [0.5.0-phase4] · 2026-04-30
 
 ### Added — structured audit log (Phase 4.1)
