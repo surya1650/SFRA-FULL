@@ -27,6 +27,7 @@ def _validate_email_shape(v: str) -> str:
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from sfra_full.audit import AuditAction, record_event
 from sfra_full.api.deps import get_session
 from sfra_full.auth import (
     Role,
@@ -85,11 +86,43 @@ def login(
 ) -> TokenResponse:
     user = session.scalar(select(User).where(User.email == username))
     if user is None or not user.is_active:
+        record_event(
+            session,
+            action=AuditAction.LOGIN_FAILED,
+            actor_email=username,
+            request_method="POST",
+            request_path="/api/auth/login",
+            response_status=401,
+            detail={"reason": "user_not_found_or_inactive"},
+            commit=True,
+        )
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
     if not verify_password(password, user.hashed_password):
+        record_event(
+            session,
+            action=AuditAction.LOGIN_FAILED,
+            actor_id=user.id,
+            actor_email=user.email,
+            actor_role=user.role.value,
+            request_method="POST",
+            request_path="/api/auth/login",
+            response_status=401,
+            detail={"reason": "bad_password"},
+            commit=True,
+        )
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
     user.last_login_at = datetime.now(timezone.utc)
+    record_event(
+        session,
+        action=AuditAction.LOGIN,
+        actor_id=user.id,
+        actor_email=user.email,
+        actor_role=user.role.value,
+        request_method="POST",
+        request_path="/api/auth/login",
+        response_status=200,
+    )
     session.commit()
 
     token = create_access_token(subject=user.id, role=user.role.value)
@@ -109,10 +142,11 @@ def me(user: User = Depends(get_current_user)) -> User:
     "/api/users",
     response_model=UserOut,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin)],
 )
 def create_user(
-    payload: UserCreate, session: Session = Depends(get_session)
+    payload: UserCreate,
+    session: Session = Depends(get_session),
+    actor: User = Depends(require_admin),
 ) -> User:
     existing = session.scalar(select(User).where(User.email == payload.email))
     if existing is not None:
@@ -124,6 +158,20 @@ def create_user(
         role=payload.role,
     )
     session.add(user)
+    session.flush()
+    record_event(
+        session,
+        action=AuditAction.USER_CREATE,
+        actor_id=actor.id,
+        actor_email=actor.email,
+        actor_role=actor.role.value,
+        target_kind="user",
+        target_id=user.id,
+        request_method="POST",
+        request_path="/api/users",
+        response_status=201,
+        detail={"created_email": user.email, "created_role": user.role.value},
+    )
     session.commit()
     session.refresh(user)
     return user

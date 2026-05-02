@@ -24,8 +24,11 @@ export const qk = {
   transformers: ["transformers"] as const,
   transformer: (id: string) => ["transformer", id] as const,
   cycles: (id: string) => ["cycles", id] as const,
+  cycleSessions: (id: string) => ["cycle", id, "sessions"] as const,
+  transformerSessions: (id: string) => ["transformer", id, "sessions"] as const,
   session: (id: string) => ["session", id] as const,
   sessionAnalyses: (id: string) => ["session", id, "analyses"] as const,
+  sessionTraces: (id: string) => ["session", id, "traces"] as const,
   trace: (id: string) => ["trace", id] as const,
   traceData: (id: string) => ["trace", id, "data"] as const,
 };
@@ -170,6 +173,31 @@ export function useTraceData(id: string | null) {
     queryKey: id ? qk.traceData(id) : ["traceData", "_off"],
     queryFn: () => api.getTraceData(id!),
     enabled: !!id,
+  });
+}
+
+// -------- Session / cycle browse ------------------------------------------
+export function useTransformerSessions(id: string | null) {
+  return useQuery({
+    queryKey: id ? qk.transformerSessions(id) : ["transformerSessions", "_off"],
+    queryFn: () => api.listSessionsForTransformer(id!),
+    enabled: !!id,
+  });
+}
+
+export function useCycleSessions(cycleId: string | null) {
+  return useQuery({
+    queryKey: cycleId ? qk.cycleSessions(cycleId) : ["cycleSessions", "_off"],
+    queryFn: () => api.listSessionsForCycle(cycleId!),
+    enabled: !!cycleId,
+  });
+}
+
+export function useSessionTraces(sessionId: string | null) {
+  return useQuery({
+    queryKey: sessionId ? qk.sessionTraces(sessionId) : ["sessionTraces", "_off"],
+    queryFn: () => api.listTracesForSession(sessionId!),
+    enabled: !!sessionId,
   });
 }
 
