@@ -1,0 +1,68 @@
+version: "3.9"
+
+# APTRANSCO SFRA platform — substation deployment.
+#
+# Quickstart:
+#   echo "SFRA_JWT_SECRET=$(openssl rand -hex 32)" > .env
+#   docker compose up -d
+#   open http://localhost  (frontend)  +  http://localhost:8000/docs (API)
+#
+# Persistence:
+#   db_data    — Postgres volume
+#   storage    — raw SFRA upload blobs (SHA-256 keyed layout)
+#   reports    — generated PDF/XLSX caches
+#   branding   — APTRANSCO letterhead asset (drop logo file here)
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sfra
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sfra-change-me}
+      POSTGRES_DB: sfra
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sfra -d sfra"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aptransco/sfra-backend:0.3
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SFRA_DATABASE_URL: postgresql+psycopg://sfra:${POSTGRES_PASSWORD:-sfra-change-me}@db:5432/sfra
+      SFRA_JWT_SECRET: ${SFRA_JWT_SECRET:?SFRA_JWT_SECRET must be set in .env (openssl rand -hex 32)}
+      SFRA_RUN_MIGRATIONS: "1"
+      SFRA_SEED_CATALOGUE: "1"
+    volumes:
+      - storage:/app/data/storage
+      - reports:/app/data/reports
+      - branding:/app/assets/branding
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: aptransco/sfra-frontend:0.3
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  db_data:
+  storage:
+  reports:
+  branding:

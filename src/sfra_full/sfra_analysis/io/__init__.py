@@ -15,14 +15,18 @@ from __future__ import annotations
 
 from .base import ParsedSweep
 from .combination_resolver import resolve_combination_code
-from .dispatch import parse_file
-from .frax import parse_frax
 from .csv import parse_csv
+from .dispatch import parse_file
+from .doble import parse_doble
+from .frax import parse_frax
+from .omicron import parse_omicron
 
 __all__ = [
     "ParsedSweep",
     "parse_csv",
+    "parse_doble",
     "parse_file",
     "parse_frax",
+    "parse_omicron",
     "resolve_combination_code",
 ]

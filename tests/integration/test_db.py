@@ -128,7 +128,7 @@ def test_seed_combinations(tmp_path, monkeypatch):
     from scripts import seed_combinations  # type: ignore[import-not-found]
 
     n = seed_combinations.seed(db_url)
-    assert n == 48  # 15 + 21 + 12
+    assert n == 84  # 15 + 21 + 12 + 36
 
     engine = build_engine(db_url)
     Sm = build_sessionmaker(engine)

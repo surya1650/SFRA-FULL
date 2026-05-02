@@ -3,6 +3,67 @@
 All notable changes to the APTRANSCO SFRA platform. Dates use ISO-8601.
 Keep entries newest-first.
 
+## [0.4.0-phase3] · 2026-04-30
+
+### Added — THREE_WINDING enumeration (Phase 3.1)
+- `standards/ieee_c57_149_combinations.yaml` now ships the **default 36-row
+  THREE_WINDING set**:
+    - 9 EEOC (HV/IV/LV × R/S/T)
+    - 9 EESC (6 default-shorted + 3 explicit `_LVS` cross-shorts)
+    - 9 CIW (HV-IV, HV-LV, IV-LV × 3 phases)
+    - 9 IIW (HV-IV, HV-LV, IV-LV × 3 phases)
+- Validator extended: `ALLOWED_CATEGORIES` adds `CIW_IV_LV` + `IIW_IV_LV`;
+  `THREE_WINDING` is no longer pending. **Catalogue total now 84**:
+  15 + 21 + 12 + 36.
+- Tests: `test_three_winding_complete_set` confirms category coverage.
+
+### Added — OEM parsers (Phase 3.2)
+- `src/sfra_full/sfra_analysis/io/doble.py` — Doble M5400 / M5300
+  `.xfra` / `.csv` parser. Permissive header `key: value` block + tab /
+  comma / semicolon / multi-space delimited data. Auto-detects radians
+  vs degrees in the phase column.
+- `src/sfra_full/sfra_analysis/io/omicron.py` — OMICRON FRAnalyzer
+  INI-style `.fra` / `.csv` parser. Reads the `[Header]` section into a
+  property dict that the combination resolver picks up automatically
+  (so `Test=End-to-end + OpenShort=Open + Phase=R + Winding=HV` →
+  `EEOC_HV_R`).
+- Dispatch updated: detects `[Header]/[Data]` markers → OMICRON, `.xfra`
+  extension or `Test Date:` markers → Doble.
+- 4 new unit tests in `tests/unit/test_oem_parsers.py`.
+
+### Added — Docker deployment (Phase 3.3)
+- `Dockerfile` — Python 3.11 slim backend image with libpq for psycopg.
+  Healthcheck on `/api/health`.
+- `frontend/Dockerfile` — two-stage Vite build → nginx alpine (~30 MB).
+  `frontend/nginx.conf` proxies `/api/*` to the backend service.
+- `docker-compose.yml` — three-service stack: postgres 15 alpine,
+  backend, frontend. Volumes for `db_data`, `storage`, `reports`,
+  `branding`. Backend health-gates startup on Postgres ready.
+- `scripts/docker-entrypoint.sh` — runs Alembic migrations + combination
+  seeder, then exec's CMD. Refuses to start without `SFRA_JWT_SECRET`
+  unless `ALLOW_DEV_JWT_SECRET=1` is explicit.
+- `.dockerignore` — keeps the build context lean.
+
+### Added — Operations runbook (Phase 3.4)
+- `docs/OPERATIONS.md` — 11-section field deployment guide:
+  deployment topologies, first-run checklist, backups, threshold
+  tuning, audit log, tap-position discipline, single-trace re-parse,
+  engine upgrade flow, common operational issues, Phase 3 caveats.
+
+### Test status
+- **74 / 74 tests passing**, 80 % coverage on `src/sfra_full/*`.
+- 84 combinations in the catalogue (TWO_WINDING=15, AUTO_BROUGHT_OUT=21,
+  AUTO_BURIED=12, THREE_WINDING=36).
+
+### Phase 3 → Phase 4 backlog
+Real APTRANSCO FRAX fixtures (12-sweep TWO_WINDING + 22-sweep
+AUTO_BROUGHT_OUT) · real letterhead asset · structured audit-log table
+in Postgres · hot-reload thresholds endpoint · frontend session/cycle
+browser + 4-panel analysis view · CIGRE / IEC / IEEE dedicated parsers
+if needed · APTRANSCO SSO IdP integration.
+
+---
+
 ## [0.3.0-phase2] · 2026-04-30
 
 ### Added — frontend wired to /api/* (Phase 2.1)
