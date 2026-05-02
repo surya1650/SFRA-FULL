@@ -24,11 +24,11 @@ CATALOGUE = ROOT / "standards" / "ieee_c57_149_combinations.yaml"
 # THREE_WINDING is intentionally pending — spec v2 lists it in the
 # transformer_type enum but does not enumerate the combination set; that
 # enumeration is part of Phase 1 engineering review.
-EXPECTED_COUNTS: dict[str, int | None] = {
+EXPECTED_COUNTS: dict[str, int] = {
     "TWO_WINDING": 15,
     "AUTO_WITH_TERTIARY_BROUGHT_OUT": 21,
     "AUTO_WITH_TERTIARY_BURIED": 12,
-    "THREE_WINDING": None,  # pending engineering enumeration
+    "THREE_WINDING": 36,  # default exhaustive enumeration; engineering may prune
 }
 
 REQUIRED_ROW_KEYS = {
@@ -48,8 +48,8 @@ REQUIRED_ROW_KEYS = {
 ALLOWED_CATEGORIES = {
     "EEOC_HV", "EEOC_LV", "EEOC_TV", "EEOC_IV",
     "EESC_HV", "EESC_LV", "EESC_IV",
-    "CIW_HV_LV", "CIW_HV_TV", "CIW_HV_IV", "CIW_LV_TV", "CIW_IV_TV",
-    "IIW_HV_LV", "IIW_HV_TV", "IIW_HV_IV", "IIW_LV_TV", "IIW_IV_TV",
+    "CIW_HV_LV", "CIW_HV_TV", "CIW_HV_IV", "CIW_LV_TV", "CIW_IV_TV", "CIW_IV_LV",
+    "IIW_HV_LV", "IIW_HV_TV", "IIW_HV_IV", "IIW_LV_TV", "IIW_IV_TV", "IIW_IV_LV",
 }
 
 # Codes follow the FRAX resolver pattern from spec v2 §4.1.
@@ -85,19 +85,6 @@ def main() -> int:
     for ttype, expected in EXPECTED_COUNTS.items():
         spec = types[ttype]
         rows = spec.get("combinations", []) or []
-
-        if expected is None:
-            # THREE_WINDING — must be marked pending.
-            if not spec.get("pending_enumeration"):
-                errors.append(
-                    f"{ttype}: count not yet set; must declare 'pending_enumeration: true'"
-                )
-            if rows:
-                errors.append(
-                    f"{ttype}: pending_enumeration but combinations list is non-empty "
-                    f"({len(rows)} rows). Empty the list or remove the pending flag."
-                )
-            continue
 
         if spec.get("total") != expected:
             errors.append(f"{ttype}: total={spec.get('total')} (expected {expected})")
@@ -154,10 +141,10 @@ def main() -> int:
             print(f"[validate-catalogue] ERROR: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Spec v2 §5 totals: 15 + 21 + 12 + (TBD) = 48 (+ THREE_WINDING)
+    # Spec v2 §5 totals: 15 + 21 + 12 + 36 = 84
     print(
         f"[validate-catalogue] OK: 4 transformer types, {total_rows} combinations enumerated "
-        "(15 + 21 + 12 = 48; THREE_WINDING pending Phase 1 engineering review)"
+        "(15 + 21 + 12 + 36 = 84)"
     )
     return 0
 

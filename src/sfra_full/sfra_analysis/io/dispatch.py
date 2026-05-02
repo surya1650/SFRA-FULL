@@ -12,7 +12,9 @@ from typing import Optional, Union
 
 from .base import ParsedSweep
 from .csv import parse_csv
+from .doble import parse_doble
 from .frax import parse_frax
+from .omicron import parse_omicron
 
 
 def parse_file(
@@ -47,6 +49,17 @@ def parse_file(
         ext = Path(filename).suffix.lower()
 
     head_lower = head.lower()
+
+    # OMICRON FRAnalyzer — INI-style sections.
+    if b"[header]" in head_lower or b"[data]" in head_lower:
+        try:
+            sweeps = parse_omicron(bytes_payload, source_filename=filename)
+        except Exception:
+            sweeps = []
+        if sweeps:
+            return "OMICRON", sweeps
+
+    # MEGGER FRAX (real schema) or legacy FRAXFile / Measurement form.
     if (
         ext in {".frax", ".xml", ".fra", ".sfra"}
         or b"<frameworx" in head_lower
@@ -57,7 +70,15 @@ def parse_file(
         sweeps = parse_frax(bytes_payload, source_filename=filename)
         if sweeps:
             return "FRAX", sweeps
-        # Empty FRAX → fall through to generic CSV.
+
+    # Doble M5400 / M5300 — .xfra extension or "Test Date:" header marker.
+    if ext == ".xfra" or b"test date:" in head_lower or b"transformer:" in head_lower[:512]:
+        try:
+            sweeps = parse_doble(bytes_payload, source_filename=filename)
+        except Exception:
+            sweeps = []
+        if sweeps:
+            return "DOBLE", sweeps
 
     sweeps = parse_csv(bytes_payload, source_filename=filename)
     return "CSV", sweeps

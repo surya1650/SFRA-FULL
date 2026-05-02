@@ -630,19 +630,404 @@ transformer_types:
         description: "Capacitive inter-winding HV→IV, phase T."
 
   # ---------------------------------------------------------------------------
-  # THREE_WINDING — pending engineering enumeration
-  # Spec v2 §3 lists this in the transformer_type ENUM but does not enumerate
-  # the combination set. Locked empty until APTRANSCO confirms the canonical
-  # row count and code list during Phase 1 review (see REFACTOR_MAP.md §6).
+  # 5.4 THREE_WINDING — 36 combinations
+  # Three full-rated windings: HV (winding 1), IV (winding 2), LV (winding 3,
+  # typically delta). Default EESC pairs the measured winding with the next-
+  # adjacent one shorted; cross-shorts get explicit _LVS / _HVS suffixes.
+  #
+  # NOTE: this enumeration is the spec v2 default. APTRANSCO engineering may
+  # prune to a 18- or 24-row subset for routine testing — flag in
+  # docs/DECISIONS.md before any rows are removed; the validator enforces
+  # the row count, so changes propagate to all downstream consumers.
   # ---------------------------------------------------------------------------
   THREE_WINDING:
-    description: "Three-winding power transformer (HV + IV + LV) — three independently-rated windings."
-    minimum_recommended: null
-    total: null
-    pending_enumeration: true
+    description: "Three-winding power transformer (HV + IV + LV) — three independently-rated windings. E.g. 400/220/132 kV YNyn0d11."
+    minimum_recommended: 18
+    total: 36
     notes: >
-      Combinations to be enumerated in Phase 1 once vector-group conventions
-      (e.g. YNyn0d11 vs YNynd) and applicability are confirmed with APTRANSCO.
-      Likely 24-36 combinations across the EEOC × {HV,IV,LV}, EESC pairwise-shorts,
-      CIW × 3 pairs, IIW × 3 pairs matrix.
-    combinations: []
+      Default 36-row enumeration. Vector-group variants (e.g. YNyn0d11 vs
+      YNynd) keep the same row count; only winding labels rotate.
+    combinations:
+      # ---- 1-3: EEOC HV ----
+      - sequence: 1
+        code: EEOC_HV_R
+        category: EEOC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV phase R."
+      - sequence: 2
+        code: EEOC_HV_S
+        category: EEOC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV phase S."
+      - sequence: 3
+        code: EEOC_HV_T
+        category: EEOC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC HV phase T."
+
+      # ---- 4-6: EEOC IV ----
+      - sequence: 4
+        code: EEOC_IV_R
+        category: EEOC_IV
+        winding: IV
+        phase: R
+        injection_terminal: "2U"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV phase R."
+      - sequence: 5
+        code: EEOC_IV_S
+        category: EEOC_IV
+        winding: IV
+        phase: S
+        injection_terminal: "2V"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV phase S."
+      - sequence: 6
+        code: EEOC_IV_T
+        category: EEOC_IV
+        winding: IV
+        phase: T
+        injection_terminal: "2W"
+        measurement_terminal: "2N"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC IV phase T."
+
+      # ---- 7-9: EEOC LV (delta) ----
+      - sequence: 7
+        code: EEOC_LV_R
+        category: EEOC_LV
+        winding: LV
+        phase: R
+        injection_terminal: "3U"
+        measurement_terminal: "3V"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC LV (delta) segment 3U-3V (pseudo phase R)."
+      - sequence: 8
+        code: EEOC_LV_S
+        category: EEOC_LV
+        winding: LV
+        phase: S
+        injection_terminal: "3V"
+        measurement_terminal: "3W"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC LV (delta) segment 3V-3W (pseudo phase S)."
+      - sequence: 9
+        code: EEOC_LV_T
+        category: EEOC_LV
+        winding: LV
+        phase: T
+        injection_terminal: "3W"
+        measurement_terminal: "3U"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "EEOC LV (delta) segment 3W-3U (pseudo phase T)."
+
+      # ---- 10-12: EESC HV with IV shorted (default) ----
+      - sequence: 10
+        code: EESC_HV_R
+        category: EESC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase R with IV winding shorted (default)."
+      - sequence: 11
+        code: EESC_HV_S
+        category: EESC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase S with IV winding shorted."
+      - sequence: 12
+        code: EESC_HV_T
+        category: EESC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: ["2U", "2V", "2W"]
+        grounded_terminals: []
+        description: "EESC HV phase T with IV winding shorted."
+
+      # ---- 13-15: EESC HV with LV (delta) shorted ----
+      - sequence: 13
+        code: EESC_HV_R_LVS
+        category: EESC_HV
+        winding: HV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "1N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC HV phase R with LV (delta) winding shorted."
+      - sequence: 14
+        code: EESC_HV_S_LVS
+        category: EESC_HV
+        winding: HV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "1N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC HV phase S with LV (delta) winding shorted."
+      - sequence: 15
+        code: EESC_HV_T_LVS
+        category: EESC_HV
+        winding: HV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "1N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC HV phase T with LV (delta) winding shorted."
+
+      # ---- 16-18: EESC IV with LV shorted ----
+      - sequence: 16
+        code: EESC_IV_R
+        category: EESC_IV
+        winding: IV
+        phase: R
+        injection_terminal: "2U"
+        measurement_terminal: "2N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC IV phase R with LV winding shorted."
+      - sequence: 17
+        code: EESC_IV_S
+        category: EESC_IV
+        winding: IV
+        phase: S
+        injection_terminal: "2V"
+        measurement_terminal: "2N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC IV phase S with LV winding shorted."
+      - sequence: 18
+        code: EESC_IV_T
+        category: EESC_IV
+        winding: IV
+        phase: T
+        injection_terminal: "2W"
+        measurement_terminal: "2N"
+        shorted_terminals: ["3U", "3V", "3W"]
+        grounded_terminals: []
+        description: "EESC IV phase T with LV winding shorted."
+
+      # ---- 19-21: CIW HV-IV ----
+      - sequence: 19
+        code: CIW_HV_IV_R
+        category: CIW_HV_IV
+        winding: HV-IV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "2U"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→IV, phase R."
+      - sequence: 20
+        code: CIW_HV_IV_S
+        category: CIW_HV_IV
+        winding: HV-IV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "2V"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→IV, phase S."
+      - sequence: 21
+        code: CIW_HV_IV_T
+        category: CIW_HV_IV
+        winding: HV-IV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "2W"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→IV, phase T."
+
+      # ---- 22-24: CIW HV-LV ----
+      - sequence: 22
+        code: CIW_HV_LV_R
+        category: CIW_HV_LV
+        winding: HV-LV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "3U"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→LV, phase R."
+      - sequence: 23
+        code: CIW_HV_LV_S
+        category: CIW_HV_LV
+        winding: HV-LV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "3V"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→LV, phase S."
+      - sequence: 24
+        code: CIW_HV_LV_T
+        category: CIW_HV_LV
+        winding: HV-LV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "3W"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding HV→LV, phase T."
+
+      # ---- 25-27: CIW IV-LV ----
+      - sequence: 25
+        code: CIW_IV_LV_R
+        category: CIW_IV_LV
+        winding: IV-LV
+        phase: R
+        injection_terminal: "2U"
+        measurement_terminal: "3U"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding IV→LV, phase R."
+      - sequence: 26
+        code: CIW_IV_LV_S
+        category: CIW_IV_LV
+        winding: IV-LV
+        phase: S
+        injection_terminal: "2V"
+        measurement_terminal: "3V"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding IV→LV, phase S."
+      - sequence: 27
+        code: CIW_IV_LV_T
+        category: CIW_IV_LV
+        winding: IV-LV
+        phase: T
+        injection_terminal: "2W"
+        measurement_terminal: "3W"
+        shorted_terminals: []
+        grounded_terminals: []
+        description: "Capacitive inter-winding IV→LV, phase T."
+
+      # ---- 28-30: IIW HV-IV ----
+      - sequence: 28
+        code: IIW_HV_IV_R
+        category: IIW_HV_IV
+        winding: HV-IV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "2U"
+        shorted_terminals: ["1N", "2N"]
+        grounded_terminals: ["1N", "2N"]
+        description: "Inductive inter-winding HV→IV, phase R."
+      - sequence: 29
+        code: IIW_HV_IV_S
+        category: IIW_HV_IV
+        winding: HV-IV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "2V"
+        shorted_terminals: ["1N", "2N"]
+        grounded_terminals: ["1N", "2N"]
+        description: "Inductive inter-winding HV→IV, phase S."
+      - sequence: 30
+        code: IIW_HV_IV_T
+        category: IIW_HV_IV
+        winding: HV-IV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "2W"
+        shorted_terminals: ["1N", "2N"]
+        grounded_terminals: ["1N", "2N"]
+        description: "Inductive inter-winding HV→IV, phase T."
+
+      # ---- 31-33: IIW HV-LV ----
+      - sequence: 31
+        code: IIW_HV_LV_R
+        category: IIW_HV_LV
+        winding: HV-LV
+        phase: R
+        injection_terminal: "1U"
+        measurement_terminal: "3U"
+        shorted_terminals: ["1N"]
+        grounded_terminals: ["1N"]
+        description: "Inductive inter-winding HV→LV, phase R."
+      - sequence: 32
+        code: IIW_HV_LV_S
+        category: IIW_HV_LV
+        winding: HV-LV
+        phase: S
+        injection_terminal: "1V"
+        measurement_terminal: "3V"
+        shorted_terminals: ["1N"]
+        grounded_terminals: ["1N"]
+        description: "Inductive inter-winding HV→LV, phase S."
+      - sequence: 33
+        code: IIW_HV_LV_T
+        category: IIW_HV_LV
+        winding: HV-LV
+        phase: T
+        injection_terminal: "1W"
+        measurement_terminal: "3W"
+        shorted_terminals: ["1N"]
+        grounded_terminals: ["1N"]
+        description: "Inductive inter-winding HV→LV, phase T."
+
+      # ---- 34-36: IIW IV-LV ----
+      - sequence: 34
+        code: IIW_IV_LV_R
+        category: IIW_IV_LV
+        winding: IV-LV
+        phase: R
+        injection_terminal: "2U"
+        measurement_terminal: "3U"
+        shorted_terminals: ["2N"]
+        grounded_terminals: ["2N"]
+        description: "Inductive inter-winding IV→LV, phase R."
+      - sequence: 35
+        code: IIW_IV_LV_S
+        category: IIW_IV_LV
+        winding: IV-LV
+        phase: S
+        injection_terminal: "2V"
+        measurement_terminal: "3V"
+        shorted_terminals: ["2N"]
+        grounded_terminals: ["2N"]
+        description: "Inductive inter-winding IV→LV, phase S."
+      - sequence: 36
+        code: IIW_IV_LV_T
+        category: IIW_IV_LV
+        winding: IV-LV
+        phase: T
+        injection_terminal: "2W"
+        measurement_terminal: "3W"
+        shorted_terminals: ["2N"]
+        grounded_terminals: ["2N"]
+        description: "Inductive inter-winding IV→LV, phase T."

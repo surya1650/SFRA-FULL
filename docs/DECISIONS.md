@@ -6,6 +6,37 @@ Keep entries chronological; never edit history.
 
 ---
 
+## 2026-04-30 · THREE_WINDING — default 36-row exhaustive set
+**Choice**: spec v2 collapsed the v1 "Part 1 / Part 2" 36×2 split into a
+single THREE_WINDING type but didn't enumerate the row count. We ship a
+**36-row default**: 9 EEOC + 9 EESC + 9 CIW + 9 IIW.
+**Why**: 36 matches industry practice (IEEE C57.149 Annex B exhaustive
+matrix on a single connection group). EESC default suffix-less form
+pairs with the next-adjacent winding; explicit `_LVS` suffix when LV is
+shorted.
+**Consequence**: total catalogue rows now 84 (15 + 21 + 12 + 36).
+
+---
+
+## 2026-04-30 · OEM parser scope — Doble + OMICRON in-tree, CIGRE/IEC/IEEE via generic CSV
+**Choice**: Phase 3 ships dedicated parsers for Doble (.xfra) and
+OMICRON FRAnalyzer (.fra). CIGRE / IEC / IEEE plain-CSV variants flow
+through `parse_csv`.
+**Why**: real APTRANSCO field instruments are MEGGER FRAX, OMICRON
+FRAnalyzer, and Doble. CIGRE / IEC / IEEE-formatted CSVs are
+already standards-compliant column layouts the generic CSV path
+handles. Promoting dedicated parsers is Phase 4 if needed.
+
+---
+
+## 2026-04-30 · Docker entrypoint refuses dev JWT secret in prod
+**Choice**: `scripts/docker-entrypoint.sh` aborts startup if
+`SFRA_JWT_SECRET` is unset, unless `ALLOW_DEV_JWT_SECRET=1` is explicit.
+**Why**: a leaked or hardcoded JWT secret invalidates the entire auth
+layer. Failing fast beats booting with a known-public secret.
+
+---
+
 ## 2026-04-25 · Catalogue location & external dependency layout
 **Choice**: `external/SFRA/` is gitignored (managed dep, brought in via
 `scripts/setup_external.sh`); the keep/wrap/replace ledger lives at
