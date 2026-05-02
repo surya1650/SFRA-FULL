@@ -266,6 +266,12 @@ export const api = {
   getSession: (id: string) => request<TestSession>(`/sessions/${id}`),
   listSessionAnalyses: (id: string) =>
     request<AnalysisResult[]>(`/sessions/${id}/analyses`),
+  listSessionsForTransformer: (transformer_id: string) =>
+    request<TestSession[]>(`/transformers/${transformer_id}/sessions`),
+  listSessionsForCycle: (cycle_id: string) =>
+    request<TestSession[]>(`/cycles/${cycle_id}/sessions`),
+  listTracesForSession: (session_id: string) =>
+    request<Trace[]>(`/sessions/${session_id}/traces`),
 
   // Upload — multipart, so don't go through the JSON helper
   uploadToSession: async (

@@ -3,6 +3,65 @@
 All notable changes to the APTRANSCO SFRA platform. Dates use ISO-8601.
 Keep entries newest-first.
 
+## [0.5.0-phase4] · 2026-04-30
+
+### Added — structured audit log (Phase 4.1)
+- `src/sfra_full/audit/` — new package with the `audit_event` ORM model,
+  18-action `AuditAction` enum (LOGIN/LOGIN_FAILED, TRANSFORMER_CREATE,
+  CYCLE_OPEN/CLOSE, UPLOAD_*, ANALYSIS_RUN/REVIEW, REPORT_*, etc.),
+  and `record_event()` recorder helper. Append-only by convention.
+- Indexed on `(actor_id, occurred_at)`, `(action, occurred_at)`,
+  and `(target_kind, target_id)` for the common query patterns.
+- Auth routes now record LOGIN / LOGIN_FAILED / USER_CREATE events.
+- `GET /api/audit` (REVIEWER+ role) — filterable by actor / action /
+  target / before-timestamp; max 1000 per page.
+- `alembic/versions/20260430_0003_audit_event.py` adds the table.
+
+### Added — hot-reload DL/T 911 thresholds (Phase 4.2)
+- `GET /api/standards/thresholds` returns the active table.
+- `PATCH /api/standards/thresholds` (ADMIN role) accepts a deep-merge
+  patch, atomically rewrites `standards/ieee_c57_149_combinations.yaml`,
+  invalidates `verdict._load_thresholds.cache_clear()`, and records a
+  `THRESHOLDS_UPDATE` audit event. **The next analysis run picks up
+  the new values without restarting the container.**
+
+### Added — session + cycle browse endpoints (Phase 4.3)
+- `GET /api/transformers/{id}/sessions` — every session for a transformer
+  (newest first, across all cycles).
+- `GET /api/cycles/{id}/sessions` — sessions belonging to one cycle.
+- `GET /api/sessions/{id}/traces` — REFERENCE + TESTED traces for the
+  session.
+
+### Added — frontend Comparison tab + 4-panel view (Phase 4.4)
+- `frontend/src/components/DiffPlot.tsx` — new Plotly component.
+  Computes Δ = test − ref on the tested grid (PCHIP-equivalent log
+  interpolation), draws ±3 dB watch + ±6 dB alarm dashed lines per
+  spec v2 §8 panel 2.
+- `frontend/src/tabs/ComparisonTab.tsx` — replaces the Phase 2 mock
+  with a full **4-panel view** (magnitude tested, magnitude reference,
+  phase tested, Δ-plot) driven by transformer → session → analysis
+  selectors. Per-band metrics table + auto-remark + session traces
+  table render alongside.
+- New TanStack Query hooks: `useTransformerSessions`,
+  `useCycleSessions`, `useSessionTraces`. Cache keys added to `qk`.
+- API client extended with `listSessionsForTransformer`,
+  `listSessionsForCycle`, `listTracesForSession`.
+
+### Test status
+- **83 / 83 tests passing**, 80 % coverage on `src/sfra_full/*`.
+- API endpoints now total **30** across 25 unique paths
+  (was 23): +1 audit + 2 thresholds + 3 session listing + 1 cycle list.
+
+### Phase 4 → Phase 5 backlog
+Real APTRANSCO FRAX fixtures (12-sweep TWO_WINDING + 22-sweep
+AUTO_BROUGHT_OUT) · real letterhead asset · APTRANSCO SSO IdP wiring
+when details confirmed · audit-log retention/archival policy +
+tamper-evident hash chain · CIGRE/IEC/IEEE dedicated CSV parsers
+(if a future fixture breaks the generic path) · multi-language
+support if APTRANSCO requires it.
+
+---
+
 ## [0.4.0-phase3] · 2026-04-30
 
 ### Added — THREE_WINDING enumeration (Phase 3.1)

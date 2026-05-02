@@ -6,6 +6,56 @@ Keep entries chronological; never edit history.
 
 ---
 
+## 2026-04-30 · Audit log: append-only by convention, not by enforcement
+**Choice**: the audit subsystem ships only INSERT — there is no UPDATE
+or DELETE in the route handlers, the recorder, or any helper. Operators
+who need to purge old rows must do so directly via SQL after the
+retention period elapses.
+**Why**: a database-enforced append-only constraint (e.g. revoking
+DELETE on the postgres role) is the right end-state but couples the
+audit table to deployment-time provisioning. Phase 5 will add a
+tamper-evident hash chain (each row hashes the previous row's id +
+content) which provides cryptographic evidence of any tampering even
+with full DB write access. Until then, the application discipline is
+"never modify a written audit row."
+
+---
+
+## 2026-04-30 · Threshold hot-reload rewrites the catalogue YAML
+**Choice**: `PATCH /api/standards/thresholds` rewrites
+`standards/ieee_c57_149_combinations.yaml` via atomic temp+rename,
+then invalidates the verdict module's lru_cache. Existing analyses
+are NOT recomputed automatically — operators re-run the analysis
+endpoint per session (`POST /api/sessions/{id}/analyse`) when a
+threshold change should propagate.
+**Why**: in-memory-only threshold patches would be lost on container
+restart; a separate user-overrides table would diverge from the YAML
+single-source-of-truth. PyYAML's `safe_dump` does reformat the file
+(strips comments, normalises quotes) but the data is preserved
+faithfully. Operators preferring to keep the human-curated YAML
+formatting can reject the API patch and edit the YAML directly + run
+`make seed-db && docker compose restart backend` per the Phase 3 ops
+runbook.
+
+---
+
+## 2026-04-30 · 4-panel comparison view follows spec v2 §8 strictly
+**Choice**: the Phase 4 ComparisonTab renders four Plotly panels —
+tested magnitude, reference magnitude, tested phase, Δ-plot — instead
+of the upstream's single-panel overlay. Δ is computed client-side via
+linear interpolation in log-Hz; the server doesn't expose a
+"resampled-onto-tested-grid reference" endpoint.
+**Why**: spec v2 §8 mandates four panels and the client-side compute
+keeps the Plotly chart responsive without an extra round-trip. The
+backend already does PCHIP regridding inside the analysis runner; the
+DiffPlot uses linear-in-log interpolation because PCHIP is overkill
+for a visual diff and would require a dedicated WASM port to keep the
+Plotly bundle small. Quantitative diff values come from the per-band
+metrics table (server-computed via PCHIP) — the chart is for human
+pattern recognition, not measurement.
+
+---
+
 ## 2026-04-30 · THREE_WINDING — default 36-row exhaustive set
 **Choice**: spec v2 collapsed the v1 "Part 1 / Part 2" 36×2 split into a
 single THREE_WINDING type but didn't enumerate the row count. We ship a

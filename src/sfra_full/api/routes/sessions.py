@@ -69,6 +69,62 @@ def get_session_detail(
     return ts
 
 
+@router.get("/api/transformers/{transformer_id}/sessions", response_model=list[TestSessionOut])
+def list_sessions_for_transformer(
+    transformer_id: str, session: Session = Depends(get_session)
+) -> list[TestSession]:
+    """All sessions across every cycle for the given transformer (newest first)."""
+    from sqlalchemy import select  # local import to avoid module-level
+
+    rows = list(
+        session.scalars(
+            select(TestSession)
+            .where(TestSession.transformer_id == transformer_id)
+            .order_by(TestSession.session_date.desc())
+        )
+    )
+    return rows
+
+
+@router.get("/api/cycles/{cycle_id}/sessions", response_model=list[TestSessionOut])
+def list_sessions_for_cycle(
+    cycle_id: str, session: Session = Depends(get_session)
+) -> list[TestSession]:
+    """Sessions belonging to one overhaul cycle (newest first)."""
+    from sqlalchemy import select
+
+    rows = list(
+        session.scalars(
+            select(TestSession)
+            .where(TestSession.overhaul_cycle_id == cycle_id)
+            .order_by(TestSession.session_date.desc())
+        )
+    )
+    return rows
+
+
+@router.get(
+    "/api/sessions/{session_id}/traces",
+    response_model=list[TraceOut],
+)
+def list_traces_for_session(
+    session_id: str, session: Session = Depends(get_session)
+) -> list[Trace]:
+    """All traces (REFERENCE + TESTED) for one session, newest first."""
+    from sqlalchemy import select
+
+    ts = session.get(TestSession, session_id)
+    if ts is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+    return list(
+        session.scalars(
+            select(Trace)
+            .where(Trace.test_session_id == session_id)
+            .order_by(Trace.uploaded_at.desc())
+        )
+    )
+
+
 @router.post(
     "/api/sessions/{session_id}/upload",
     response_model=UploadResponse,

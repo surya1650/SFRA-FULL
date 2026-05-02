@@ -35,14 +35,16 @@ def session():
 
 
 def test_all_tables_build():
-    # Importing auth.models registers the user table on Base.metadata.
+    # Importing auth.models / audit.models registers their tables on Base.metadata.
     from sfra_full.auth.models import User  # noqa: F401
+    from sfra_full.audit.models import AuditEvent  # noqa: F401
 
     engine = build_engine("sqlite://")
     Base.metadata.create_all(engine)
     table_names = sorted(Base.metadata.tables.keys())
     assert table_names == [
         "analysis_result",
+        "audit_event",
         "combination",
         "overhaul_cycle",
         "test_session",
