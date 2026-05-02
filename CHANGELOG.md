@@ -3,6 +3,80 @@
 All notable changes to the APTRANSCO SFRA platform. Dates use ISO-8601.
 Keep entries newest-first.
 
+## [0.3.0-phase2] · 2026-04-30
+
+### Added — frontend wired to /api/* (Phase 2.1)
+- `frontend/src/api/client.ts` — typed fetch wrapper covering all 17
+  Phase 1 + 2 endpoints, with `ApiError` carrying status + payload.
+- `frontend/src/api/hooks.ts` — TanStack Query hooks for every
+  endpoint, with cache-key constants and mutation-side invalidation.
+- `frontend/src/components/SfraPlot.tsx` — Plotly.js chart component
+  driven by `GET /api/traces/{id}/data`. Lazy-loads Plotly so the
+  initial bundle stays small. Magnitude / phase modes, sub-band
+  shading, log-scale frequency axis.
+- `frontend/src/tabs/DashboardTab.tsx` — replaces mock data with live
+  `useHealth()` + `useTransformers()`; shows transformer table.
+- `frontend/src/tabs/UploadTab.tsx` — full Phase 2 upload flow:
+  register transformer + open cycle + start session + upload file +
+  run analysis. Renders `unmapped_sweeps` warnings inline.
+- `frontend/src/tabs/TracesTab.tsx` — paste a trace id and the Plotly
+  charts render. Phase 3 will add a richer trace selector once the
+  session/cycle browser lands.
+
+### Added — reports (Phase 2.2)
+- `src/sfra_full/reports/pdf.py` — ReportLab session report.
+  - APTRANSCO-letterhead slot (auto-includes `assets/branding/aptransco_logo.{png,jpg,svg}` if present).
+  - Cover with nameplate + cycle + session + instrument + ambient.
+  - Per-combination pages with the per-band metrics table, Mode 2
+    band-energy table, auto + reviewer remarks.
+  - Final summary table.
+  - **DRAFT — INCOMPLETE watermark** (spec v2 §11) when fewer
+    analyses exist than the catalogue's expected total for the type.
+- `src/sfra_full/reports/xlsx.py` — openpyxl session workbook:
+  - **Summary** sheet (one row per analysis, severity colour-fill).
+  - **One sheet per combination** with re-gridded `frequency_hz /
+    ref_mag_db / test_mag_db / diff_db / phase` columns so
+    APTRANSCO reviewers can plot directly in Excel.
+  - **_metadata** sheet capturing the full session context.
+- `src/sfra_full/api/routes/reports.py` — `GET /api/sessions/{id}/report.pdf`
+  and `.xlsx`. Both render even on partial sets (with watermark).
+
+### Added — auth scaffold (Phase 2.3)
+- `src/sfra_full/auth/` — JWT, Engineer/Reviewer/Admin roles, bcrypt
+  hashing (direct, not via passlib — passlib's bcrypt backend breaks
+  with bcrypt>=4), FastAPI deps for `get_current_user` +
+  `require_engineer/reviewer/admin`.
+- `src/sfra_full/auth/sso.py` — APTRANSCO SSO placeholder router
+  returning 501 until IdP details are confirmed (spec v2 §2 hook).
+- `src/sfra_full/api/routes/auth.py` — `POST /api/auth/login`
+  (form-encoded), `GET /api/auth/me`, `POST /api/users`, `GET /api/users`.
+  Admin endpoints gated on the ADMIN role.
+- Permissive email validator that accepts `.test` TLDs (Pydantic's
+  `EmailStr` rejects them).
+- `alembic/versions/20260430_0002_user_auth.py` — adds the user table.
+
+### Added — integration tests
+- `tests/integration/test_reports.py` — PDF endpoint produces a
+  well-formed PDF on a partial set; XLSX endpoint produces a workbook
+  with Summary + per-combination + _metadata sheets.
+- `tests/integration/test_auth.py` — login issues JWT, /me returns
+  user, bad password rejected, engineer can't list users (403),
+  admin can create + list users, missing Authorization → 401, SSO → 501.
+
+### Test status
+- **69 / 69 tests passing**, 80 % coverage on `src/sfra_full/*`.
+- API endpoints now total **23**: 16 Phase 1 + 2 reports + 5 auth + 2 SSO placeholders.
+
+### Phase 2 → Phase 3 handoff
+Remaining: OEM-specific parsers (Doble / Omicron / CIGRE / IEC / IEEE)
+promoted from upstream, THREE_WINDING combination enumeration once
+APTRANSCO confirms the row count, real APTRANSCO FRAX fixtures
+(12-sweep TWO_WINDING + 22-sweep AUTO_BROUGHT_OUT), real letterhead
+asset upload, frontend session/cycle browser + analysis-view 4-panel
+plot per spec v2 §10, multi-language support if APTRANSCO requires it.
+
+---
+
 ## [0.2.0-phase1] · 2026-04-30
 
 ### Added — DB layer

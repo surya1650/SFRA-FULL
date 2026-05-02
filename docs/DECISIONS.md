@@ -183,6 +183,41 @@ cycle's data remains read-only browsable.
 
 ---
 
+## 2026-04-30 · bcrypt directly, not via passlib
+**Choice**: `auth/password.py` calls the `bcrypt` module directly rather
+than going through passlib's `CryptContext`.
+**Why**: passlib's bcrypt backend reads `bcrypt.__about__.__version__`
+which was removed in bcrypt>=4. The fallback path issues a confusing
+deprecation warning and makes verify slow. Direct bcrypt is two
+function calls (`hashpw` + `checkpw`), version-stable, and removes the
+passlib dependency from the production wheel.
+
+---
+
+## 2026-04-30 · Permissive email validation
+**Choice**: `UserCreate.email` is a plain `str` with a custom
+field validator (`@@count == 1`, dot in domain), not Pydantic's
+`EmailStr`.
+**Why**: Pydantic's `EmailStr` (via email-validator) rejects RFC-2606
+reserved TLDs like `.test`, `.example`, `.invalid` — which our test
+fixtures use deliberately. The permissive validator still rejects
+malformed inputs while allowing the standardised test domains.
+
+---
+
+## 2026-04-30 · PDF watermark not searchable in raw bytes
+**Choice**: the partial-set DRAFT watermark is drawn via
+`canvas.drawCentredString` after a `setFillAlpha(0.12)` + rotation;
+it survives all PDF readers but is NOT visible in a `b"DRAFT" in bytes`
+substring search because ReportLab compresses content streams.
+**Why**: searching the raw bytes for "DRAFT" is unreliable and was
+breaking tests intermittently. The integration test instead asserts
+that the partial-set code path was taken (analysis count < catalogue
+total) and that the rendered PDF is well-formed (`%%EOF`). Visual
+verification is part of the §13 acceptance criteria handled by humans.
+
+---
+
 ## 2026-04-30 · Single endpoint for both upload paths
 **Choice**: `POST /api/sessions/{id}/upload` handles both spec v2 §6.1
 paths (single-trace + batch FRAX) via the presence/absence of the

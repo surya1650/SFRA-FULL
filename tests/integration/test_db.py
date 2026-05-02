@@ -35,6 +35,9 @@ def session():
 
 
 def test_all_tables_build():
+    # Importing auth.models registers the user table on Base.metadata.
+    from sfra_full.auth.models import User  # noqa: F401
+
     engine = build_engine("sqlite://")
     Base.metadata.create_all(engine)
     table_names = sorted(Base.metadata.tables.keys())
@@ -45,6 +48,7 @@ def test_all_tables_build():
         "test_session",
         "trace",
         "transformer",
+        "user",
     ]
 
 
