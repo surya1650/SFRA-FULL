@@ -11,7 +11,9 @@ from sfra_full import __version__
 from sfra_full.db import Base, build_engine, build_sessionmaker, resolve_database_url
 from sfra_full.storage import FilesystemStorage
 
-from .routes import analyses, health, sessions, standards, traces, transformers
+from .routes import analyses, auth, health, reports, sessions, standards, traces, transformers
+from sfra_full.auth.sso import router as sso_router
+from sfra_full.auth.models import User  # noqa: F401 — register on metadata
 
 
 def create_app(
@@ -64,6 +66,9 @@ def create_app(
     app.include_router(sessions.router)
     app.include_router(traces.router)
     app.include_router(analyses.router)
+    app.include_router(reports.router)
+    app.include_router(auth.router)
+    app.include_router(sso_router)
 
     return app
 
