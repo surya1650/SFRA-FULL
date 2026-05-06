@@ -71,10 +71,13 @@ data/reports/
 external/SFRA/
 
 # ---------------------------------------------------------------------------
-# Branding assets that may be license-restricted
+# Branding assets
 # ---------------------------------------------------------------------------
-# The APTRANSCO logo (sourced from aptransco.gov.in) goes in assets/branding/
-# but the binary itself is not redistributed in git — drop it locally.
-assets/branding/aptransco_logo.*
-!assets/branding/.gitkeep
+# The APTRANSCO logo SVG recreation IS committed (assets/branding/aptransco_logo.svg).
+# Higher-resolution PNG/JPG drops are kept local — substation deployments can
+# place the official asset there to override the SVG.
+assets/branding/aptransco_logo.png
+assets/branding/aptransco_logo.jpg
+assets/branding/aptransco_logo.jpeg
+!assets/branding/aptransco_logo.svg
 !assets/branding/README.txt

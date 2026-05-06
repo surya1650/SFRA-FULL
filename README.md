@@ -1,136 +1,151 @@
 # SFRA-FULL — APTRANSCO SFRA Diagnostic Tool
 
-**Sweep Frequency Response Analysis** platform for power-transformer winding-condition assessment, conforming to **IEEE C57.149-2012**, **IEC 60076-18**, **DL/T 911-2004**, and **CIGRE TB 342 / TB 812**.
+<p>
+  <img src="assets/branding/aptransco_logo.svg" alt="AP TRANSCO ISO 27001 - 2022" width="120" align="right">
+</p>
 
-Built for APTRANSCO HIS (Transmission Corporation of Andhra Pradesh, High-voltage Substation Information System) field engineers. Ingests SFRA traces from MEGGER FRAX, OMICRON FRAnalyzer, Doble M5x00, and generic CSV/IEC/IEEE/CIGRE exports; produces per-band statistical indicators, resonance-shift diagnostics, severity verdicts, and APTRANSCO-letterhead PDF / XLSX reports.
+**Sweep Frequency Response Analysis** platform for power-transformer winding-condition assessment — IEEE C57.149-2012 / IEC 60076-18 / DL/T 911-2004 / CIGRE TB 342 + TB 812 compliant.
 
----
-
-## 1 · What you get
-
-- **84 IEEE C57.149 combinations** seeded across four transformer types (TWO_WINDING=15, AUTO_WITH_TERTIARY_BROUGHT_OUT=21, AUTO_WITH_TERTIARY_BURIED=12, THREE_WINDING=36).
-- **Mode 1** comparative analysis (reference + tested) — uncentered CC, ASLE, CSD, MM, MaxDev, DL/T 911 RL factor per band, resonance pairing with `matched/lost/new` classification, advisory pole fit, deterministic verdict + auto-remarks.
-- **Mode 2** standalone analysis (single tested trace, no reference) — band-energy distribution, resonance density, peak irregularity, noise/SNR, abnormal-damping flags. Mode 1 supersedes Mode 2 automatically when a reference is uploaded later.
-- **30+ REST endpoints** across health, standards, transformers, cycles, sessions, uploads (single + batch FRAX in one route), analyses (incl. reviewer sign-off), traces, reports, auth, audit.
-- **PDF + XLSX reports** with per-combination plots, summary table, and `DRAFT — INCOMPLETE` watermark on partial sets.
-- **Tamper-evident audit log** — every login / upload / analysis / threshold change / review hashes the previous row, with `GET /api/audit/verify` to detect any tampering.
-- **Engineer / Reviewer / Admin** roles via JWT; admin-only threshold hot-reload, user creation, and chain verification.
-- **React + TypeScript + Tailwind + Plotly** frontend with a 7-tab navigation matching the Claude Design system handoff (`docs/design/`), including a full **4-panel comparison view** per spec v2 §8.
+Built for APTRANSCO HIS (Transmission Corporation of Andhra Pradesh, High-voltage Substation Information System). Ingests SFRA traces from MEGGER FRAX, OMICRON FRAnalyzer, Doble M5x00, and generic CSV/IEC/IEEE/CIGRE exports; produces per-band statistical indicators, resonance-shift diagnostics, severity verdicts, APTRANSCO-letterhead PDF + XLSX reports, and a tamper-evident audit trail.
 
 ---
 
-## 2 · Quickstart — `docker compose up` (recommended)
+## TL;DR — open the app on your laptop
 
-Easiest path for substation laptops. Brings up Postgres 15 + FastAPI backend + nginx-fronted React build in one command.
+You need **two terminal windows** open at the same time. Terminal A runs the backend (Python + FastAPI on port 8000); Terminal B runs the frontend (Vite + React on port 5173). The frontend talks to the backend via a Vite proxy.
 
-### 2.1 Prereqs
-
-- Docker 20.10+ and the `docker compose` v2 plugin.
-- ~2 GB of free disk; ~1 GB RAM.
-
-### 2.2 Steps
-
-```bash
-git clone https://github.com/surya1650/SFRA-FULL.git
-cd SFRA-FULL
-
-# 1. Generate the JWT signing secret + Postgres password.
-cp .env.example .env
-sed -i "s/replace-me-with-32-bytes-of-random-hex/$(openssl rand -hex 32)/" .env
-sed -i "s/replace-me-postgres-pwd/$(openssl rand -hex 16)/" .env
-
-# 2. Boot the stack.
-docker compose up -d --build
-
-# 3. Wait ~90 seconds for migrations + catalogue seed.
-docker compose logs -f backend | head -40
-# Look for "[entrypoint] Starting service: uvicorn ..."
-
-# 4. Create the first admin user (one-time).
-docker compose exec backend python3 -c "
-from sfra_full.db import build_engine, build_sessionmaker
-from sfra_full.auth import User, Role, hash_password
-eng = build_engine()
-Sm = build_sessionmaker(eng)
-s = Sm()
-s.add(User(email='admin@aptransco.gov.in', full_name='HIS Admin',
-           hashed_password=hash_password('CHANGE_ME_ON_FIRST_LOGIN'),
-           role=Role.ADMIN))
-s.commit()
-print('admin@aptransco.gov.in / CHANGE_ME_ON_FIRST_LOGIN')
-"
+```
+┌────────────────────────────────────┐    ┌────────────────────────────────────┐
+│ Terminal A — backend               │    │ Terminal B — frontend              │
+│                                    │    │                                    │
+│ uvicorn on http://localhost:8000   │    │ vite on    http://localhost:5173   │
+│   /api/health  /docs  …            │    │   proxies /api → :8000             │
+│                                    │    │                                    │
+└────────────────────────────────────┘    └────────────────────────────────────┘
 ```
 
-### 2.3 Open in your browser
-
-| URL | What it shows |
-|---|---|
-| **<http://localhost>** | The React UI — Dashboard / Upload & Configure / Traces / **Comparison & Indices (4-panel view)** / Failure Diagnosis / Modeling / Report tabs |
-| <http://localhost:8000/api/health> | Backend liveness probe |
-| <http://localhost:8000/docs> | Interactive OpenAPI / Swagger UI for every endpoint |
-
-### 2.4 First user flow
-
-1. Open <http://localhost>.
-2. Use the **Upload & Configure** tab to register a transformer, open a commissioning cycle, and start a session.
-3. Drop a `.frax` / `.csv` / `.fra` / `.xfra` file in the dropzone.
-4. Click **Run analysis** — Mode 1 (with reference) or Mode 2 (without).
-5. Switch to **Comparison & Indices** to see the **4-panel view**: tested magnitude, reference magnitude, tested phase, Δ-plot with ±3 dB watch and ±6 dB alarm lines, plus per-band metrics and the auto-generated remark.
-6. Hit **Download PDF** in the Report tab when the session is complete.
+Open **<http://localhost:5173>** in your browser when both are running. The Swagger docs live at **<http://localhost:8000/docs>**.
 
 ---
 
-## 3 · Quickstart — local dev (no Docker)
-
-For developers who want to iterate on the analysis core or frontend.
-
-### 3.1 Backend
+## 1 · One-time setup (do these once after cloning)
 
 ```bash
+# Clone
 git clone https://github.com/surya1650/SFRA-FULL.git
 cd SFRA-FULL
 
-# Optional: pull the upstream surya1650/SFRA repo for sample fixtures.
+# (Optional) pull the upstream surya1650/SFRA repo so demo fixtures exist.
 bash scripts/setup_external.sh
+```
 
-# Python 3.11+ required. uv is recommended (https://github.com/astral-sh/uv).
-pip install uv
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
+### Backend prereqs
 
-# Allow the dev JWT secret (don't ship this to prod).
+- **Python 3.11+** (`python3 --version` to check).
+- A virtual env tool — either Python's built-in `venv` (always available) or `uv` (faster, recommended; `pip install uv`).
+
+### Frontend prereqs
+
+- **Node.js 18+** (`node --version` to check).
+- `npm` (ships with Node).
+
+---
+
+## 2 · Run the backend in Terminal A
+
+```bash
+cd SFRA-FULL
+
+# 2.1  Create + activate a virtual env (only the first time).
+python3 -m venv .venv
+source .venv/bin/activate     # on Windows PowerShell: .venv\Scripts\Activate.ps1
+
+# 2.2  Install all Python deps in editable mode.
+pip install --upgrade pip
+pip install -e ".[dev]"
+
+# 2.3  Allow the backend to boot without setting a real JWT secret
+#      (DEV ONLY — the entrypoint refuses to start in production
+#      without SFRA_JWT_SECRET).
 export ALLOW_DEV_JWT_SECRET=1
 
-# Initialise SQLite + seed the 84 combinations.
+# 2.4  Initialise the SQLite DB at ./data/app.db and seed the 84 combinations.
 alembic upgrade head
 python3 scripts/seed_combinations.py
 
-# Run the FastAPI dev server.
+# 2.5  Start the FastAPI dev server with auto-reload.
 uvicorn sfra_full.api.app:app --reload --port 8000
 ```
 
-API now live on <http://localhost:8000>.
-
-### 3.2 Frontend
-
-In a second terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
-# Vite dev server: http://localhost:5173, proxying /api → :8000
+You should see:
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Application startup complete.
 ```
 
-Open <http://localhost:5173> for hot-reload development. For production builds, `npm run build` emits a static bundle in `frontend/dist/`.
+Quick smoke check (in another shell or browser):
+- <http://localhost:8000/api/health> → `{"status":"ok","version":"…"}`
+- <http://localhost:8000/docs> → interactive Swagger UI for **30+ endpoints**
 
-### 3.3 One-liner end-to-end demo
+**Leave Terminal A running.**
 
-After steps 3.1 + 3.2 are running, with the upstream sample fixtures cloned:
+---
+
+## 3 · Run the frontend in Terminal B
+
+Open a **new** terminal (don't close Terminal A).
 
 ```bash
-# Create a demo admin (only once; idempotent if you skip if it errors).
+cd SFRA-FULL/frontend
+
+# 3.1  Install JS deps (only the first time, takes ~30 s).
+npm install
+
+# 3.2  Start the Vite dev server.
+npm run dev
+```
+
+You should see:
+```
+  VITE v5.4.x  ready in xxx ms
+  ➜  Local:   http://localhost:5173/
+```
+
+Open <http://localhost:5173> in your browser. The 7-tab navigation is live: **Dashboard · Upload & Configure · Traces & Graphs · Comparison & Indices · Failure Diagnosis · Modeling · Report**.
+
+**Leave Terminal B running.** Hot-reload is on — edits to `frontend/src/**` refresh in the browser instantly.
+
+---
+
+## 4 · Click-through demo (5 minutes)
+
+With both terminals running:
+
+1. Open <http://localhost:5173>.
+2. Go to **Upload & Configure** (tab 2).
+3. Click **Create + open cycle + start session** (defaults are fine for a demo).
+4. **Drag-and-drop a sample SFRA file** into the dropzone:
+   - If you ran `scripts/setup_external.sh`, you have:
+     - `external/SFRA/backend/samples/ref.frax` → upload as **REFERENCE**, combination `EEOC_HV_R`
+     - `external/SFRA/backend/samples/test.frax` → upload as **TESTED**, combination `EEOC_HV_R`
+   - Otherwise, any `.frax` / `.csv` / `.fra` / `.xfra` you have on disk works.
+5. Click **Run analysis (Mode 1/2)**. The Phase 0 + Phase 1 pipelines fire — you should see one row per uploaded TESTED trace with a severity badge and an auto-remark.
+6. Switch to **Comparison & Indices** (tab 4).
+7. Pick the same transformer + session + analysis row. The **4-panel view** lights up:
+   - tested magnitude (top-left)
+   - reference magnitude (top-right)
+   - tested phase (bottom-left)
+   - **Δ-plot** with ±3 dB watch + ±6 dB alarm dashed lines (bottom-right)
+8. Below the plots: **per-band metrics table** + auto-remark + session traces table.
+
+---
+
+## 5 · End-to-end shell demo (no browser needed)
+
+The repo ships a `curl`-based smoke pipeline that hits every important endpoint:
+
+```bash
+# Create a demo admin user (in Terminal A's venv).
 PYTHONPATH=src python3 -c "
 from sfra_full.db import build_engine, build_sessionmaker
 from sfra_full.auth import User, Role, hash_password
@@ -140,20 +155,120 @@ s.add(User(email='admin@aptransco.test', full_name='Demo Admin',
 s.commit()
 "
 
-# Run the end-to-end demo (login → register → upload ref+test → analyse → PDF/XLSX).
+# Run the demo (Terminal A still running).
 ADMIN_EMAIL=admin@aptransco.test ADMIN_PASSWORD=admin1234 \
     bash scripts/demo.sh
 ```
 
-The script walks login → register → cycle → session → upload ref + tested → analyse → audit-chain verify → download PDF + XLSX. It prints the verdict for each combination and saves the reports to `/tmp/sfra-demo.{pdf,xlsx}`.
+The script logs in → registers a transformer → opens a commissioning cycle → starts a routine session → uploads `ref.frax` + `test.frax` → runs analysis → verifies the audit hash chain → downloads PDF + XLSX reports to `/tmp/sfra-demo.{pdf,xlsx}`.
 
 ---
 
-## 4 · Repository layout
+## 6 · Stopping + restarting
+
+- Stop the backend (Terminal A): `Ctrl+C`.
+- Stop the frontend (Terminal B): `Ctrl+C`.
+- Restart later: just run **steps 2.5** (uvicorn) and **3.2** (`npm run dev`) again — the venv, deps, and DB are persistent.
+- Wipe everything and start clean: `rm -rf data/app.db data/storage` then re-run `alembic upgrade head` + `python3 scripts/seed_combinations.py`.
+
+---
+
+## 7 · Production-style deployment with Docker (one-shot)
+
+If you don't want to run two terminals and just want everything live:
+
+```bash
+cp .env.example .env
+sed -i "s/replace-me-with-32-bytes-of-random-hex/$(openssl rand -hex 32)/" .env
+sed -i "s/replace-me-postgres-pwd/$(openssl rand -hex 16)/" .env
+
+docker compose up -d --build
+# Wait ~90 s for migrations + seed.
+```
+
+Then:
+- **<http://localhost>** — production React build behind nginx
+- **<http://localhost:8000/docs>** — backend Swagger
+- See `docs/OPERATIONS.md` for the full ops guide (backups, threshold tuning, audit, upgrades).
+
+---
+
+## 8 · What you get
+
+| Capability | Where it lives |
+|---|---|
+| **84 IEEE C57.149 combinations** seeded across 4 transformer types (15 + 21 + 12 + 36) | `standards/ieee_c57_149_combinations.yaml` |
+| **Mode 1** (reference + tested) — uncentered CC, ASLE, CSD, MM, MaxDev, DL/T 911 RL factor per band; resonance pairing with `matched/lost/new`; advisory pole fit | `src/sfra_full/sfra_analysis/{statistical,transfer,compare}.py` |
+| **Mode 2** (single trace, no reference) — band energy, resonance density, peak irregularity, noise/SNR, abnormal-damping flags. Auto-superseded by Mode 1 when a reference is uploaded later. | `src/sfra_full/sfra_analysis/standalone.py` |
+| **Parsers** — MEGGER FRAX (real + legacy), OMICRON FRAnalyzer, Doble M5x00, generic CSV/TSV with auto Hz/kHz + deg/rad detection | `src/sfra_full/sfra_analysis/io/` |
+| **30+ REST endpoints** + interactive OpenAPI | `src/sfra_full/api/` |
+| **PDF + XLSX reports** with APTRANSCO letterhead slot, per-combination plots, summary table, **DRAFT — INCOMPLETE watermark** on partial sets | `src/sfra_full/reports/` |
+| **Tamper-evident audit log** — every action hashes the previous row; `GET /api/audit/verify` detects any UPDATE/DELETE/reorder | `src/sfra_full/audit/` |
+| **JWT auth** — Engineer / Reviewer / Admin roles; admin-only threshold hot-reload, user creation, chain verification | `src/sfra_full/auth/` |
+| **React + TypeScript + Tailwind + Plotly** frontend with 7-tab nav and 4-panel comparison view | `frontend/` |
+
+---
+
+## 9 · Key API endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Liveness probe |
+| `GET` | `/api/standards/combinations?transformer_type=…` | 15/21/12/36 combinations for a type |
+| `GET` `PATCH` | `/api/standards/thresholds` | Read / hot-reload DL/T 911 RL thresholds (admin) |
+| `POST` | `/api/auth/login` | Form-encoded login → JWT |
+| `POST` `GET` | `/api/transformers` | Transformer registry |
+| `POST` `GET` | `/api/transformers/{id}/cycles` | Open / list overhaul cycles |
+| `POST` `GET` | `/api/transformers/{id}/sessions` | Test sessions |
+| `POST` | `/api/sessions/{id}/upload` | **Single-trace OR batch FRAX in one route** (spec v2 §6.1) |
+| `POST` `GET` | `/api/sessions/{id}/analyse` / `/analyses` | Run + list Mode 1 / Mode 2 |
+| `POST` | `/api/analyses/{id}/review` | Reviewer sign-off (REVIEWER+) |
+| `GET` | `/api/sessions/{id}/report.pdf` / `.xlsx` | Reports |
+| `GET` | `/api/traces/{id}/data` | Decoded numpy arrays for plotting |
+| `GET` | `/api/audit` / `/api/audit/verify` | Audit log + tamper verification |
+
+Full OpenAPI: <http://localhost:8000/docs> while the backend is running.
+
+---
+
+## 10 · Running the test suite
+
+```bash
+# In Terminal A's venv, with the backend NOT running (tests use their own in-memory DB):
+PYTHONPATH=src pytest tests/
+
+# Validate the catalogue YAML schema:
+python3 scripts/validate_catalogue.py
+
+# Frontend tests (Vitest):
+cd frontend && npm run test
+```
+
+86 tests pass at 80 % coverage on `src/sfra_full/*`.
+
+---
+
+## 11 · Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `uvicorn: command not found` | `pip install -e ".[dev]"` inside the venv (step 2.2). |
+| `npm install` errors on `node-gyp` | Make sure Node 18+ is installed; older Node ships a broken native-build chain. |
+| Backend logs `SFRA_JWT_SECRET unset` | Run `export ALLOW_DEV_JWT_SECRET=1` in Terminal A before `uvicorn`. |
+| Frontend shows `Failed to fetch /api/health` | Backend isn't running — go check Terminal A. |
+| Browser shows CORS errors hitting `:5173` | The Vite proxy handles `/api/*` automatically. If you're hitting a non-`/api` URL, point your fetch at `http://localhost:8000` directly. |
+| `Database is locked` (SQLite) | Stop the backend, delete `data/app.db`, re-run `alembic upgrade head` + the seeder. |
+| Comparison tab says "Select a trace to plot" forever | Make sure you ran **Run analysis** in step 4.5; only analysed traces show up in the analysis-row dropdown. |
+| Reports tab buttons disabled | The session needs at least one analysed combination — run analysis first. |
+
+---
+
+## 12 · Repository layout
 
 ```
 SFRA-FULL/
 ├── alembic/                       # SQLAlchemy migrations (initial + user + audit + chain)
+├── assets/branding/               # APTRANSCO logo SVG (committed) + README
 ├── docs/
 │   ├── DECISIONS.md               # Engineering choices that diverge from defaults
 │   ├── OPERATIONS.md              # 11-section ops runbook (deploy/backup/audit)
@@ -162,137 +277,45 @@ SFRA-FULL/
 │   ├── src/api/                   # Typed API client + TanStack Query hooks
 │   ├── src/components/            # Header, TabNav, Card, VerdictBadge, SfraPlot, DiffPlot
 │   ├── src/tabs/                  # Dashboard / Upload / Traces / Comparison / Diagnosis / Modeling / Report
-│   ├── Dockerfile / nginx.conf    # Two-stage Vite-build → nginx
 │   └── tailwind.config.cjs        # Aligned with docs/design/ tokens
 ├── scripts/
 │   ├── seed_combinations.py       # YAML → DB upsert of the 84 combinations
 │   ├── validate_catalogue.py      # Catalogue schema + count enforcer (pre-commit hook)
-│   ├── setup_external.sh          # Clone surya1650/SFRA into external/ for fixtures
+│   ├── setup_external.sh          # Clone surya1650/SFRA into external/ for demo fixtures
 │   ├── docker-entrypoint.sh       # Container bootstrap (migrations + seed + uvicorn)
 │   └── demo.sh                    # End-to-end demo curl pipeline
 ├── src/sfra_full/
-│   ├── api/                       # FastAPI app + 10 route modules
+│   ├── api/                       # FastAPI app + 9 route modules
 │   ├── audit/                     # AuditEvent ORM + tamper-evident hash chain + verifier
-│   ├── auth/                      # JWT, bcrypt, role gates, SSO placeholder router
+│   ├── auth/                      # JWT, bcrypt, role gates
 │   ├── db/                        # SQLAlchemy 2.x typed models + array helpers
 │   ├── reports/                   # ReportLab PDF + openpyxl XLSX generators
 │   ├── sfra_analysis/             # Pure analysis core
-│   │   ├── bands.py               # YAML-loaded BandSpec + overlap helpers
-│   │   ├── resample.py            # PCHIP regrid + 80% overlap guard
-│   │   ├── statistical.py         # CC / ASLE / CSD / MM / RL per spec v2 §7.3
-│   │   ├── transfer.py            # Resonance detection + matching + pole fit
-│   │   ├── verdict.py             # DL/T 911 RL → severity + auto-remarks
-│   │   ├── compare.py             # Mode 1 orchestrator
-│   │   ├── standalone.py          # Mode 2 orchestrator
-│   │   ├── runner.py              # Mode 1/2 dispatcher
+│   │   ├── bands · resample · statistical · transfer · verdict · compare · standalone · runner
 │   │   └── io/                    # FRAX (real + legacy), CSV, Doble, OMICRON, dispatch
 │   ├── storage/                   # Filesystem blob store with SHA-256 keying
-│   └── cli.py                     # `sfra-full analyse / serve / seed-db / ...`
+│   └── cli.py                     # `sfra-full analyse / serve / seed-db / …`
 ├── standards/
 │   └── ieee_c57_149_combinations.yaml   # Single source of truth for 84 combinations
 ├── tests/
 │   ├── conftest.py                # synthetic_trace_factory fixture
-│   ├── unit/                      # Catalogue / bands / statistical / resample / runner / standalone / io / OEM-parsers
+│   ├── unit/                      # catalogue / bands / statistical / resample / runner / standalone / io / OEM-parsers
 │   └── integration/               # DB / storage / API / reports / auth / audit / thresholds
 ├── alembic.ini · pyproject.toml · Makefile · pre-commit · Dockerfile · docker-compose.yml
-├── CHANGELOG.md · REFACTOR_MAP.md
+├── CHANGELOG.md · REFACTOR_MAP.md · SFRA_FULL_Requirements.md
 └── README.md (this file)
 ```
 
 ---
 
-## 5 · CLI reference
+## 13 · Operations + decisions
 
-The `sfra-full` CLI is installed by `pip install -e .` and exposes:
+- **`docs/OPERATIONS.md`** — 11 sections covering deployment topologies (substation laptop / central HIS / air-gapped), backups (Postgres + storage), threshold tuning, audit log, tap-position discipline, single-trace re-parse, engine upgrades, common operational issues.
+- **`docs/DECISIONS.md`** — engineering choices that diverged from defaults (uncentered-CC vs Pearson, default 36-row THREE_WINDING set, hot-reload rewrites the YAML, audit hash-chain implementation notes, SSO router intentionally removed for now).
 
-| Command | What it does |
-|---|---|
-| `sfra-full version` | Print the engine version. |
-| `sfra-full validate-catalogue` | Re-run the YAML schema + count enforcer. |
-| `sfra-full seed-db` | Upsert the 84 combinations into the DB (uses `SFRA_DATABASE_URL`). |
-| `sfra-full frax-info <path>` | List every sweep in a `.frax` file with its resolved combination code. |
-| `sfra-full analyse <tested> [--reference <ref>] [--out <json>]` | Mode 1 (with `--reference`) or Mode 2 (without) — JSON dump of `AnalysisOutcome`. |
-| `sfra-full serve [--host --port --reload]` | Run the FastAPI dev server under uvicorn. |
+## 14 · Standards traceability
 
-Examples:
-
-```bash
-# Mode 2 on a single trace (no reference yet).
-sfra-full analyse external/SFRA/backend/samples/test.frax \
-    --transformer-type TWO_WINDING --combination-code EEOC_HV_R
-
-# Mode 1 with both traces.
-sfra-full analyse external/SFRA/backend/samples/test.frax \
-    --reference external/SFRA/backend/samples/ref.frax \
-    --transformer-type TWO_WINDING --combination-code EEOC_HV_R \
-    --out /tmp/result.json
-```
-
----
-
-## 6 · Key API endpoints
-
-See <http://localhost:8000/docs> for the live OpenAPI schema with request/response shapes.
-
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| GET | `/api/health` | — | Liveness probe |
-| GET | `/api/standards/combinations?transformer_type=…` | — | List the 15/21/12/36 combinations for a type |
-| GET | `/api/standards/bands` | — | Spec v2 + DL/T 911 band definitions |
-| GET | `/api/standards/thresholds` | — | Active DL/T 911 RL thresholds |
-| PATCH | `/api/standards/thresholds` | ADMIN | Hot-reload thresholds (deep-merge into YAML, invalidate cache, audit) |
-| POST | `/api/auth/login` | — | Form-encoded username + password → JWT |
-| GET | `/api/auth/me` | any | Current user |
-| POST | `/api/users` / GET `/api/users` | ADMIN | User CRUD |
-| POST/GET | `/api/transformers` (+ `/{id}`) | — / any | Transformer registry |
-| POST/GET | `/api/transformers/{id}/cycles` | any | Open / list overhaul cycles (auto-closes prior open cycle) |
-| POST | `/api/transformers/{id}/sessions` | any | Start a test session |
-| GET | `/api/transformers/{id}/sessions` | — | All sessions for the transformer |
-| GET | `/api/cycles/{id}/sessions` | — | Sessions inside one cycle |
-| GET | `/api/sessions/{id}` / `/traces` | — | Session metadata + trace list |
-| POST | `/api/sessions/{id}/upload` | any | **Single-trace OR batch FRAX in one route** (spec v2 §6.1) |
-| POST | `/api/sessions/{id}/analyse` | ENGINEER | Run Mode 1/2 across every TESTED trace |
-| GET | `/api/sessions/{id}/analyses` | — | List analyses for the session |
-| GET | `/api/analyses/{id}` | — | One analysis result |
-| POST | `/api/analyses/{id}/review` | REVIEWER | Sign-off (or reject) with reviewer remarks + audit |
-| GET | `/api/sessions/{id}/report.pdf` | — | APTRANSCO-letterhead PDF (DRAFT watermark on partial sets) |
-| GET | `/api/sessions/{id}/report.xlsx` | — | Workbook with summary + per-combo + metadata sheets |
-| GET | `/api/traces/{id}` / `/data` | — | Trace metadata or decoded numpy arrays |
-| GET | `/api/audit` | REVIEWER | Filterable audit log (actor / action / target / before) |
-| GET | `/api/audit/verify` | ADMIN | Verify the tamper-evident hash chain |
-
----
-
-## 7 · Running the test suite
-
-```bash
-# Backend (90+ tests across catalogue / bands / statistical / resample /
-# runner / standalone / io / OEM-parsers / db / storage / api / reports /
-# auth / audit_thresholds):
-PYTHONPATH=src pytest tests/
-
-# Catalogue + schema validator:
-python3 scripts/validate_catalogue.py
-
-# Frontend:
-cd frontend && npm run test
-```
-
-Coverage budget: **≥80 % on `src/sfra_full/sfra_analysis/*`**, currently 80 % across the entire `src/sfra_full/*` tree.
-
----
-
-## 8 · Operations + day-2 maintenance
-
-See **[`docs/OPERATIONS.md`](docs/OPERATIONS.md)** — 11 sections covering deployment topologies (substation / central / air-gapped), backups (Postgres + storage), threshold tuning, audit log, tap-position discipline, single-trace re-parse, engine upgrades, common issues.
-
-For engineering choices that diverged from the defaults, see **[`docs/DECISIONS.md`](docs/DECISIONS.md)** (e.g. uncentered-CC vs Pearson, default 36-row THREE_WINDING set, hot-reload rewrites the YAML, audit hash chain).
-
----
-
-## 9 · Standards traceability
-
-| Spec | Where it lives |
+| Spec | Where it lives in code |
 |---|---|
 | **IEEE C57.149-2012 Clause 5 + Table 1** (combination matrix) | `standards/ieee_c57_149_combinations.yaml` |
 | **IEC 60076-18:2012** (band definitions) | YAML `bands.spec_v2` |
@@ -303,8 +326,5 @@ The validator (`scripts/validate_catalogue.py`) blocks any commit that breaks th
 
 ---
 
-## 10 · License + attribution
-
-Built on top of [`surya1650/SFRA`](https://github.com/surya1650/SFRA) — the upstream is cloned into `external/SFRA/` (gitignored) by `scripts/setup_external.sh` and inventoried in `REFACTOR_MAP.md` (keep / wrap / rewrite / new). Spec v2 is the authoritative requirements document.
-
 Internal use, APTRANSCO HIS division.
+Built on top of [`surya1650/SFRA`](https://github.com/surya1650/SFRA) — see [`REFACTOR_MAP.md`](REFACTOR_MAP.md) for the keep / wrap / rewrite / new ledger.

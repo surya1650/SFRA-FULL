@@ -81,10 +81,17 @@ class PdfRenderOptions:
 
 
 def _logo_path() -> Optional[Path]:
-    """Return the first letterhead asset if any exist."""
+    """Return the first ReportLab-renderable letterhead asset, if present.
+
+    ReportLab's ``Image`` flowable doesn't render SVG without ``svglib``,
+    which we don't carry as a runtime dep. So when the only logo on disk
+    is the SVG recreation (committed at ``assets/branding/aptransco_logo.svg``),
+    we skip it and let the cover render with the text-only APTRANSCO
+    title instead. Drop a real PNG/JPG into the same folder to upgrade.
+    """
     if not _ASSETS_DIR.exists():
         return None
-    for ext in (".png", ".jpg", ".jpeg", ".svg"):
+    for ext in (".png", ".jpg", ".jpeg"):
         cand = _ASSETS_DIR / f"aptransco_logo{ext}"
         if cand.exists():
             return cand

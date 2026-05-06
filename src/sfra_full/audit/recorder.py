@@ -55,7 +55,9 @@ def record_event(
         request_path=request_path,
         response_status=response_status,
         detail=dict(detail) if detail else None,
-        occurred_at=datetime.now(timezone.utc).replace(microsecond=0),
+        # Microsecond precision keeps `latest_hash` ordering stable when two
+        # events race within the same second.
+        occurred_at=datetime.now(timezone.utc),
     )
     ev.prev_hash = prev
     ev.current_hash = compute_hash(ev, prev)
