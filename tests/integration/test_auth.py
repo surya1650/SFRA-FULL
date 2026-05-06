@@ -107,6 +107,7 @@ def test_missing_authorization_returns_401(client_and_session):
     assert r.status_code == 401
 
 
-def test_sso_endpoints_return_501(client_and_session):
+def test_sso_endpoints_not_registered(client_and_session):
+    """SSO IdP integration deferred — router not wired into the app."""
     r = client_and_session.get("/api/auth/sso/login")
-    assert r.status_code == 501
+    assert r.status_code == 404
