@@ -1,6 +1,6 @@
 [project]
 name = "sfra-full"
-version = "0.1.0-phase0"
+version = "0.1.0"
 description = "APTRANSCO SFRA analysis platform — IEEE C57.149-2012 compliant per-combination diagnostics with versioned reference library."
 readme = "external/INVENTORY.md"
 requires-python = ">=3.11"

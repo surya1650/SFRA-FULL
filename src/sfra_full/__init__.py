@@ -16,5 +16,5 @@ Design system: ``docs/design/DESIGN_SYSTEM.md``.
 """
 from __future__ import annotations
 
-__version__ = "0.1.0-phase0"
+__version__ = "0.1.0"
 __all__ = ["__version__"]
